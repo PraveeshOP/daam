@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+:root { --ink: #17221f; --muted: #66736e; --line: #e3e9e5; --mint: #d9f5ec; --green: #0c8b67; --coral: #ef745f; --paper: #fbfcfa; }
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: "DM Sans", sans-serif; }
+h1, h2, h3, h4 { font-family: "Space Grotesk", sans-serif; letter-spacing: -0.02em; }
+a { color: inherit; text-decoration: none; }
+button, input { font: inherit; }
+.container { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
+.page-grid { background-image: linear-gradient(#e9eeea 1px, transparent 1px), linear-gradient(90deg, #e9eeea 1px, transparent 1px); background-size: 48px 48px; }
+.line-clamp-2 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+@media (max-width: 640px) { .container { width: min(100% - 28px, 1180px); } }
