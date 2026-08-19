@@ -55,6 +55,7 @@ type DatabaseOffer = {
 type DatabaseHistory = {
   price: number | string;
   recorded_at: string;
+  store_id?: string | null;
 };
 
 export type DatabaseProduct = {
@@ -115,19 +116,24 @@ export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
     .map((offer) => offer.stores)
     .filter((store): store is DatabaseStore => Boolean(store))
     .map(asStore),
-  history: (row.price_history || [])
+  history: Object.values((row.price_history || [])
     .sort(
       (first, second) =>
         new Date(first.recorded_at).getTime() -
         new Date(second.recorded_at).getTime(),
     )
-    .map((point) => ({
-      label: new Date(point.recorded_at).toLocaleDateString("en-NP", {
+    .reduce<Record<string, { label: string; price: number; timestamp: number }>>((history, point) => {
+      const timestamp = new Date(point.recorded_at).getTime();
+      const label = new Date(point.recorded_at).toLocaleDateString("en-NP", {
         month: "short",
         year: "2-digit",
-      }),
-      price: Number(point.price),
-    })),
+      });
+      const price = Number(point.price);
+      history[label] = history[label] ? { label, timestamp: Math.min(history[label].timestamp, timestamp), price: Math.min(history[label].price, price) } : { label, timestamp, price };
+      return history;
+    }, {}))
+    .sort((first, second) => first.timestamp - second.timestamp)
+    .map(({ label, price }) => ({ label, price })),
   rating: 0,
   reviewCount: 0,
   featured: row.featured,

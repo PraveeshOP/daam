@@ -11,7 +11,7 @@ const SITEMAP_URL = "https://evostore.com.np/sitemap.xml";
 const USER_AGENT = "PriceNepalCatalogCollector/0.1 (+manual low-volume catalog import)";
 const delay = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const slugify = (value: string) => value.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/[\s_]+/g, "-").replace(/-+/g, "-").slice(0, 100);
-const summary: CollectionSummary = { discovered: 0, imported: 0, updated: 0, skipped: 0, priceChanges: 0, errors: [] };
+const summary: CollectionSummary = { discovered: 0, imported: 0, updated: 0, skipped: 0, priceChanges: 0, matchedProducts: 0, createdProducts: 0, createdOffers: 0, updatedOffers: 0, uncertainMatches: [], errors: [] };
 
 async function fetchText(url: string) {
   const response = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xml" }, redirect: "follow" });

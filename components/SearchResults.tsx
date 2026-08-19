@@ -31,11 +31,11 @@ function FilterControls({ filters, onChange, products }: FilterControlProps) {
         <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Category</p>
         <div className="space-y-2">
           {categories.map((item) => (
-            <label key={item.id} className="flex cursor-pointer items-center gap-3 text-sm">
-              <input type="radio" name="category" checked={filters.category === item.slug} onChange={() => onChange("category", filters.category === item.slug ? "" : item.slug)} className="h-4 w-4 accent-[#0c8b67]" />
+            <div key={item.id} className="flex items-center gap-3 text-sm">
+              <button type="button" aria-pressed={filters.category === item.slug} onClick={() => onChange("category", filters.category === item.slug ? "" : item.slug)} className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#7e8582]" aria-label={item.name}><span className={`h-2.5 w-2.5 rounded-full ${filters.category === item.slug ? "bg-[#0c8b67]" : "bg-transparent"}`} /></button>
               {item.name}
               <span className="ml-auto text-xs text-[#a0aaa5]">{products.filter((product) => product.categorySlug === item.slug).length}</span>
-            </label>
+            </div>
           ))}
         </div>
       </div>
@@ -43,10 +43,10 @@ function FilterControls({ filters, onChange, products }: FilterControlProps) {
         <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Store</p>
         <div className="space-y-2">
           {stores.map((item) => (
-            <label key={item.id} className="flex cursor-pointer items-center gap-3 text-sm">
-              <input type="radio" name="store" checked={filters.store === item.slug} onChange={() => onChange("store", filters.store === item.slug ? "" : item.slug)} className="h-4 w-4 accent-[#0c8b67]" />
+            <div key={item.id} className="flex items-center gap-3 text-sm">
+              <button type="button" aria-pressed={filters.store === item.slug} onClick={() => onChange("store", filters.store === item.slug ? "" : item.slug)} className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#7e8582]" aria-label={item.name}><span className={`h-2.5 w-2.5 rounded-full ${filters.store === item.slug ? "bg-[#0c8b67]" : "bg-transparent"}`} /></button>
               {item.name}
-            </label>
+            </div>
           ))}
         </div>
       </div>

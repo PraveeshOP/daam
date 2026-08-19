@@ -22,6 +22,8 @@ The first manual collector targets Evo Store's public smartphone product URLs. E
 
 Run a safe parser-only check with `npm run collect:evo -- --dry-run --limit=10`. Before the first write, run [supabase/migrations/20260819_add_offer_external_id.sql](supabase/migrations/20260819_add_offer_external_id.sql) in the Supabase SQL editor, add `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`, and run `npm run collect:evo -- --limit=10`. Never commit the service-role key; it bypasses RLS and is server-only.
 
+The second-store adapter targets ITTI's public product-detail API. Run `npm run collect:itti -- --dry-run --limit=10` to parse ten overlapping smartphone pages, or `npm run collect:itti -- --limit=10` to import them. Both collectors use the shared matcher in [collectors/core/matcher.ts](collectors/core/matcher.ts): high-confidence brand/model/storage matches reuse a canonical product, while medium-confidence matches are logged and kept separate.
+
 ## GitHub Actions
 
 Pull requests and pushes to `main` run lint, typecheck, and a production build through [CI](.github/workflows/ci.yml). The optional [Vercel deployment](.github/workflows/deploy.yml) runs after `main` pushes when the repository variable `ENABLE_VERCEL_DEPLOY` is set to `true` and `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets are configured.

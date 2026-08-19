@@ -8,6 +8,7 @@
     "start": "next start",
     "test": "vitest run",
     "collect:evo": "tsx collectors/evo/collector.ts",
+    "collect:itti": "tsx collectors/itti/collector.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
