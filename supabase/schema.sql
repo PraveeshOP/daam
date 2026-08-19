@@ -36,6 +36,7 @@ create table if not exists offers (
   id uuid primary key default gen_random_uuid(),
   product_id uuid not null references products(id) on delete cascade,
   store_id uuid not null references stores(id) on delete cascade,
+  external_id text,
   price numeric(12,2) not null check (price >= 0),
   previous_price numeric(12,2),
   currency text not null default 'NPR',
@@ -46,6 +47,12 @@ create table if not exists offers (
   updated_at timestamptz not null default now(),
   unique(product_id, store_id)
 );
+
+alter table offers add column if not exists external_id text;
+
+create unique index if not exists offers_store_external_id_idx
+  on offers (store_id, external_id)
+  where external_id is not null;
 
 create table if not exists price_history (
   id uuid primary key default gen_random_uuid(),

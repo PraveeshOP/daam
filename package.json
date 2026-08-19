@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "collect:evo": "tsx collectors/evo/collector.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -26,6 +27,7 @@
     "eslint-config-next": "^16.3.1",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.9.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "tsx": "^4.19.2"
   }
 }

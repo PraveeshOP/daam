@@ -20,6 +20,7 @@ export type Offer = {
   id: string;
   productId: string;
   storeId: string;
+  externalId?: string;
   price: number;
   previousPrice?: number;
   availability: Availability;

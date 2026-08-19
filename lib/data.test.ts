@@ -45,6 +45,7 @@ describe("mapDatabaseProduct", () => {
         id: "offer-1",
         product_id: "product-1",
         store_id: "store-1",
+        external_id: null,
         price: "89999",
         previous_price: null,
         availability: "in_stock",

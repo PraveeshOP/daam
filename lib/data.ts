@@ -43,6 +43,7 @@ type DatabaseOffer = {
   id: string;
   product_id: string;
   store_id: string;
+  external_id: string | null;
   price: number | string;
   previous_price: number | string | null;
   availability: string;
@@ -99,6 +100,7 @@ export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
     id: offer.id,
     productId: offer.product_id,
     storeId: offer.store_id,
+    externalId: offer.external_id || undefined,
     price: Number(offer.price),
     previousPrice:
       offer.previous_price === null ? undefined : Number(offer.previous_price),

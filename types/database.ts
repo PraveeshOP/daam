@@ -22,9 +22,9 @@ export type Database = {
         Relationships: [{ foreignKeyName: "products_category_id_fkey"; columns: ["category_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] }];
       };
       offers: {
-        Row: { id: string; product_id: string; store_id: string; price: number; previous_price: number | null; currency: string; availability: string; product_url: string; last_checked: string; created_at: string; updated_at: string };
-        Insert: { id?: string; product_id: string; store_id: string; price: number; previous_price?: number | null; currency?: string; availability?: string; product_url: string; last_checked?: string; created_at?: string; updated_at?: string };
-        Update: { id?: string; product_id?: string; store_id?: string; price?: number; previous_price?: number | null; currency?: string; availability?: string; product_url?: string; last_checked?: string; created_at?: string; updated_at?: string };
+        Row: { id: string; product_id: string; store_id: string; external_id: string | null; price: number; previous_price: number | null; currency: string; availability: string; product_url: string; last_checked: string; created_at: string; updated_at: string };
+        Insert: { id?: string; product_id: string; store_id: string; external_id?: string | null; price: number; previous_price?: number | null; currency?: string; availability?: string; product_url: string; last_checked?: string; created_at?: string; updated_at?: string };
+        Update: { id?: string; product_id?: string; store_id?: string; external_id?: string | null; price?: number; previous_price?: number | null; currency?: string; availability?: string; product_url?: string; last_checked?: string; created_at?: string; updated_at?: string };
         Relationships: [{ foreignKeyName: "offers_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] }, { foreignKeyName: "offers_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] }];
       };
       price_history: {
