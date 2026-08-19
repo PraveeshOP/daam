@@ -1,6 +1,6 @@
 import { loadEnvConfig } from "@next/env";
 import { STORE_IDS, getCollector } from "@/collectors/registry";
-import { closeRedisConnection, getSharedRedisConnection } from "@/worker/redis";
+import { closeRedisConnection, getSharedRedisConnection } from "@/lib/queue/redis";
 import { getPriceCollectionQueue } from "@/worker/queue";
 
 loadEnvConfig(process.cwd());

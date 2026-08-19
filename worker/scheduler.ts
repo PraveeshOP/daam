@@ -1,5 +1,5 @@
 import { STORE_IDS } from "@/collectors/registry";
-import { log } from "@/worker/logger";
+import { log } from "@/lib/logger";
 import { getPriceCollectionQueue } from "@/worker/queue";
 
 /** 6h by default (conservative, per spec section 9). Change with COLLECTION_INTERVAL_HOURS —

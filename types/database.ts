@@ -33,6 +33,18 @@ export type Database = {
         Update: { id?: string; product_id?: string; store_id?: string | null; price?: number; recorded_at?: string };
         Relationships: [{ foreignKeyName: "price_history_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] }, { foreignKeyName: "price_history_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] }];
       };
+      favorites: {
+        Row: { id: string; user_id: string; product_id: string; created_at: string };
+        Insert: { id?: string; user_id: string; product_id: string; created_at?: string };
+        Update: { id?: string; user_id?: string; product_id?: string; created_at?: string };
+        Relationships: [{ foreignKeyName: "favorites_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] }];
+      };
+      price_alerts: {
+        Row: { id: string; user_id: string; product_id: string; target_price: number; currency: string; is_active: boolean; triggered_at: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; user_id: string; product_id: string; target_price: number; currency?: string; is_active?: boolean; triggered_at?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; user_id?: string; product_id?: string; target_price?: number; currency?: string; is_active?: boolean; triggered_at?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [{ foreignKeyName: "price_alerts_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] }];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

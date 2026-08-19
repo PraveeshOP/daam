@@ -2,14 +2,23 @@ import Link from "next/link";
 import { ArrowUpRight, Store } from "lucide-react";
 import type { ProductWithOffers } from "@/types";
 import { SafeImage } from "@/components/SafeImage";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
-export function ProductCard({ product }: { product: ProductWithOffers }) {
+export function ProductCard({
+  product,
+  isFavorited = false,
+  isAuthenticated = false,
+}: {
+  product: ProductWithOffers;
+  isFavorited?: boolean;
+  isAuthenticated?: boolean;
+}) {
   const drop = product.offers.some(
     (offer) => offer.previousPrice && offer.price < offer.previousPrice,
   );
   return (
-    <article className="group flex min-w-0 flex-col overflow-hidden rounded-[4px] border border-[#e3e9e5] bg-white transition hover:-translate-y-1 hover:border-[#a9cdbf] hover:shadow-[0_16px_35px_rgba(23,34,31,0.08)]">
+    <article className="group relative flex min-w-0 flex-col overflow-hidden rounded-[4px] border border-[#e3e9e5] bg-white transition hover:-translate-y-1 hover:border-[#a9cdbf] hover:shadow-[0_16px_35px_rgba(23,34,31,0.08)]">
       <Link
         href={`/product/${product.slug}`}
         className="relative block aspect-[1.15] overflow-hidden bg-[#f2f5f2]"
@@ -27,6 +36,15 @@ export function ProductCard({ product }: { product: ProductWithOffers }) {
           </span>
         )}
       </Link>
+      <div className="absolute right-3 top-3">
+        <FavoriteButton
+          productId={product.id}
+          initialFavorited={isFavorited}
+          isAuthenticated={isAuthenticated}
+          variant="icon"
+          className="bg-white/95 shadow-[0_4px_12px_rgba(23,34,31,0.12)]"
+        />
+      </div>
       <div className="flex flex-1 flex-col p-4">
         <p className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-[#88948e]">
           {product.brand} · {product.category}

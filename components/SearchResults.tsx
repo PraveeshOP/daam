@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { ProductWithOffers } from "@/types";
 import { ProductCard } from "@/components/ProductCard";
-import { categories, stores } from "@/lib/data";
+import { categories, stores } from "@/lib/seed-data";
 
 export type SearchViewFilters = {
   category: string;
@@ -78,8 +78,19 @@ export function FilterSidebar({ filters, products }: FilterProps) {
   return <aside className="hidden rounded-[4px] border border-[#e3e9e5] bg-white p-5 lg:block"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} products={products} /></aside>;
 }
 
-export function SearchResults({ products, filters }: { products: ProductWithOffers[]; filters: SearchViewFilters }) {
+export function SearchResults({
+  products,
+  filters,
+  favoritedProductIds = [],
+  isAuthenticated = false,
+}: {
+  products: ProductWithOffers[];
+  filters: SearchViewFilters;
+  favoritedProductIds?: string[];
+  isAuthenticated?: boolean;
+}) {
   const router = useRouter();
+  const favoritedSet = new Set(favoritedProductIds);
   const hasActiveFilters = Boolean(filters.category || filters.store || filters.minPrice || filters.maxPrice || filters.inStock);
   return <>
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -88,6 +99,6 @@ export function SearchResults({ products, filters }: { products: ProductWithOffe
       <label className="ml-auto flex items-center gap-2 text-sm text-[#66736e]">Sort by <span className="relative"><select aria-label="Sort products" value={filters.sort} onChange={(event) => router.push(updateUrl("sort", event.target.value))} className="appearance-none rounded-[3px] border border-[#d6dfda] bg-white py-2 pl-3 pr-8 font-semibold text-[#17221f] outline-none focus:border-[#0c8b67]"><option value="relevance">Relevance</option><option value="lowest">Lowest price</option><option value="highest">Highest price</option><option value="discount">Biggest discount</option><option value="recent">Recently added</option></select><ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" /></span></label>
     </div>
     <div id="mobile-filters" className="mb-5 hidden rounded-[4px] border border-[#d6dfda] bg-white p-5 lg:hidden"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} products={products} /></div>
-    <div className="grid gap-4 sm:grid-cols-2">{products.length ? products.map((product) => <ProductCard key={product.id} product={product} />) : <div className="col-span-full rounded-[4px] border border-dashed border-[#cbd8d1] bg-white p-12 text-center"><h2 className="text-xl font-bold">No products found</h2><p className="mt-2 text-sm text-[#66736e]">Try another search or adjust your filters.</p></div>}</div>
+    <div className="grid gap-4 sm:grid-cols-2">{products.length ? products.map((product) => <ProductCard key={product.id} product={product} isFavorited={favoritedSet.has(product.id)} isAuthenticated={isAuthenticated} />) : <div className="col-span-full rounded-[4px] border border-dashed border-[#cbd8d1] bg-white p-12 text-center"><h2 className="text-xl font-bold">No products found</h2><p className="mt-2 text-sm text-[#66736e]">Try another search or adjust your filters.</p></div>}</div>
   </>;
 }
