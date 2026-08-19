@@ -19,9 +19,6 @@ export type StoreProduct = {
 
 export type CollectionSummary = {
   discovered: number;
-  imported: number;
-  updated: number;
-  skipped: number;
   priceChanges: number;
   matchedProducts: number;
   createdProducts: number;

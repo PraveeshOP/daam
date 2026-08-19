@@ -9,11 +9,17 @@
     "test": "vitest run",
     "collect:evo": "tsx collectors/evo/collector.ts",
     "collect:itti": "tsx collectors/itti/collector.ts",
+    "worker:dev": "tsx worker/index.ts",
+    "queue:evo-store": "tsx worker/trigger.ts evo-store",
+    "queue:itti": "tsx worker/trigger.ts itti",
+    "redis:up": "docker compose up -d redis",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
+    "bullmq": "^6.1.2",
+    "ioredis": "^6.0.0",
     "lucide-react": "^0.468.0",
     "next": "^16.3.1",
     "react": "^19.2.0",
@@ -27,8 +33,8 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.3.1",
     "tailwindcss": "^4.1.12",
+    "tsx": "^4.19.2",
     "typescript": "^5.9.0",
-    "vitest": "^3.2.4",
-    "tsx": "^4.19.2"
+    "vitest": "^3.2.4"
   }
 }
