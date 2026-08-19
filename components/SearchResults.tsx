@@ -1,159 +1,93 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
 import type { ProductWithOffers } from "@/types";
 import { ProductCard } from "@/components/ProductCard";
 import { categories, stores } from "@/lib/data";
 
-export function SearchResults({
-  products,
-  query,
-}: {
+export type SearchViewFilters = {
+  category: string;
+  store: string;
+  minPrice: string;
+  maxPrice: string;
+  inStock: boolean;
+  sort: "relevance" | "lowest" | "highest" | "discount" | "recent";
+};
+
+type FilterProps = {
+  filters: SearchViewFilters;
   products: ProductWithOffers[];
-  query: string;
-}) {
-  const [sort, setSort] = useState("relevance");
-  const [category, setCategory] = useState("");
-  const [store, setStore] = useState("");
-  const [mobileFilters, setMobileFilters] = useState(false);
-  const filtered = useMemo(
-    () =>
-      products
-        .filter(
-          (product) =>
-            (!category || product.categorySlug === category) &&
-            (!store || product.offers.some((offer) => offer.storeId === store)),
-        )
-        .sort((a, b) =>
-          sort === "lowest"
-            ? a.lowestPrice - b.lowestPrice
-            : sort === "highest"
-              ? b.lowestPrice - a.lowestPrice
-              : sort === "discount"
-                ? b.savings - a.savings
-                : 0,
-        ),
-    [category, products, sort, store],
-  );
-  const controls = (
+};
+
+type FilterControlProps = FilterProps & {
+  onChange: (key: keyof SearchViewFilters, value: string | boolean) => void;
+};
+
+function FilterControls({ filters, onChange, products }: FilterControlProps) {
+  return (
     <div className="space-y-7">
       <div>
-        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">
-          Category
-        </p>
+        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Category</p>
         <div className="space-y-2">
-          {categories.slice(0, 6).map((item) => (
-            <label
-              key={item.id}
-              className="flex cursor-pointer items-center gap-3 text-sm"
-            >
-              <input
-                type="radio"
-                name="category"
-                checked={category === item.slug}
-                onChange={() =>
-                  setCategory(category === item.slug ? "" : item.slug)
-                }
-                className="h-4 w-4 accent-[#0c8b67]"
-              />
+          {categories.map((item) => (
+            <label key={item.id} className="flex cursor-pointer items-center gap-3 text-sm">
+              <input type="radio" name="category" checked={filters.category === item.slug} onChange={() => onChange("category", filters.category === item.slug ? "" : item.slug)} className="h-4 w-4 accent-[#0c8b67]" />
               {item.name}
-              <span className="ml-auto text-xs text-[#a0aaa5]">
-                {products.filter((p) => p.categorySlug === item.slug).length}
-              </span>
+              <span className="ml-auto text-xs text-[#a0aaa5]">{products.filter((product) => product.categorySlug === item.slug).length}</span>
             </label>
           ))}
         </div>
       </div>
       <div>
-        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">
-          Store
-        </p>
+        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Store</p>
         <div className="space-y-2">
           {stores.map((item) => (
-            <label
-              key={item.id}
-              className="flex cursor-pointer items-center gap-3 text-sm"
-            >
-              <input
-                type="checkbox"
-                checked={store === item.id}
-                onChange={() => setStore(store === item.id ? "" : item.id)}
-                className="h-4 w-4 accent-[#0c8b67]"
-              />
+            <label key={item.id} className="flex cursor-pointer items-center gap-3 text-sm">
+              <input type="radio" name="store" checked={filters.store === item.slug} onChange={() => onChange("store", filters.store === item.slug ? "" : item.slug)} className="h-4 w-4 accent-[#0c8b67]" />
               {item.name}
             </label>
           ))}
         </div>
       </div>
       <div>
-        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">
-          Availability
-        </p>
-        <label className="flex items-center gap-3 text-sm">
-          <Check size={16} className="text-[#0c8b67]" /> In stock only
-        </label>
+        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Price (NPR)</p>
+        <div className="flex gap-2">
+          <input aria-label="Minimum price" inputMode="numeric" value={filters.minPrice} onChange={(event) => onChange("minPrice", event.target.value.replace(/\D/g, ""))} placeholder="Min" className="min-w-0 w-full rounded border border-[#d6dfda] px-2 py-2 text-xs outline-none focus:border-[#0c8b67]" />
+          <input aria-label="Maximum price" inputMode="numeric" value={filters.maxPrice} onChange={(event) => onChange("maxPrice", event.target.value.replace(/\D/g, ""))} placeholder="Max" className="min-w-0 w-full rounded border border-[#d6dfda] px-2 py-2 text-xs outline-none focus:border-[#0c8b67]" />
+        </div>
       </div>
+      <label className="flex cursor-pointer items-center gap-3 text-sm">
+        <input type="checkbox" checked={filters.inStock} onChange={(event) => onChange("inStock", event.target.checked)} className="h-4 w-4 accent-[#0c8b67]" />
+        <Check size={16} className="text-[#0c8b67]" /> In stock only
+      </label>
     </div>
   );
-  return (
-    <>
-      <div className="mb-5 flex items-center justify-between">
-        <button
-          onClick={() => setMobileFilters(!mobileFilters)}
-          className="flex items-center gap-2 rounded-[3px] border border-[#d6dfda] bg-white px-3 py-2 text-sm font-bold lg:hidden"
-        >
-          <SlidersHorizontal size={16} /> Filters
-        </button>
-        <p className="hidden text-sm text-[#66736e] lg:block">
-          {filtered.length} products found
-        </p>
-        <label className="flex items-center gap-2 text-sm text-[#66736e]">
-          Sort by{" "}
-          <span className="relative">
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="appearance-none rounded-[3px] border border-[#d6dfda] bg-white py-2 pl-3 pr-8 font-semibold text-[#17221f] outline-none"
-            >
-              <option value="relevance">Relevance</option>
-              <option value="lowest">Lowest price</option>
-              <option value="highest">Highest price</option>
-              <option value="discount">Biggest discount</option>
-            </select>
-            <ChevronDown
-              size={14}
-              className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2"
-            />
-          </span>
-        </label>
-      </div>
-      {mobileFilters && (
-        <div className="mb-5 rounded-[4px] border border-[#d6dfda] bg-white p-5 lg:hidden">
-          {controls}
-        </div>
-      )}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {filtered.length ? (
-          filtered.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))
-        ) : (
-          <div className="col-span-full rounded-[4px] border border-dashed border-[#cbd8d1] bg-white p-12 text-center">
-            <h2 className="text-xl font-bold">No products found</h2>
-            <p className="mt-2 text-sm text-[#66736e]">
-              Try a broader search or clear your filters.
-            </p>
-          </div>
-        )}
-      </div>
-    </>
-  );
 }
-export function FilterSidebar({ children }: { children: React.ReactNode }) {
-  return (
-    <aside className="hidden rounded-[4px] border border-[#e3e9e5] bg-white p-5 lg:block">
-      {children}
-    </aside>
-  );
+
+function updateUrl(key: keyof SearchViewFilters, value: string | boolean) {
+  const params = new URLSearchParams(window.location.search);
+  const parameter = key === "inStock" ? "stock" : key === "minPrice" ? "min" : key === "maxPrice" ? "max" : key;
+  if (!value || value === "relevance") params.delete(parameter);
+  else params.set(parameter, String(value));
+  return `/search?${params.toString()}`;
+}
+
+export function FilterSidebar({ filters, products }: FilterProps) {
+  const router = useRouter();
+  return <aside className="hidden rounded-[4px] border border-[#e3e9e5] bg-white p-5 lg:block"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} products={products} /></aside>;
+}
+
+export function SearchResults({ products, filters }: { products: ProductWithOffers[]; filters: SearchViewFilters }) {
+  const router = useRouter();
+  const hasActiveFilters = Boolean(filters.category || filters.store || filters.minPrice || filters.maxPrice || filters.inStock);
+  return <>
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <button type="button" onClick={() => document.getElementById("mobile-filters")?.classList.toggle("hidden")} className="flex items-center gap-2 rounded-[3px] border border-[#d6dfda] bg-white px-3 py-2 text-sm font-bold lg:hidden"><SlidersHorizontal size={16} /> Filters{hasActiveFilters ? " · Active" : ""}</button>
+      <p className="hidden text-sm text-[#66736e] lg:block">{products.length} products found</p>
+      <label className="ml-auto flex items-center gap-2 text-sm text-[#66736e]">Sort by <span className="relative"><select aria-label="Sort products" value={filters.sort} onChange={(event) => router.push(updateUrl("sort", event.target.value))} className="appearance-none rounded-[3px] border border-[#d6dfda] bg-white py-2 pl-3 pr-8 font-semibold text-[#17221f] outline-none focus:border-[#0c8b67]"><option value="relevance">Relevance</option><option value="lowest">Lowest price</option><option value="highest">Highest price</option><option value="discount">Biggest discount</option><option value="recent">Recently added</option></select><ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" /></span></label>
+    </div>
+    <div id="mobile-filters" className="mb-5 hidden rounded-[4px] border border-[#d6dfda] bg-white p-5 lg:hidden"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} products={products} /></div>
+    <div className="grid gap-4 sm:grid-cols-2">{products.length ? products.map((product) => <ProductCard key={product.id} product={product} />) : <div className="col-span-full rounded-[4px] border border-dashed border-[#cbd8d1] bg-white p-12 text-center"><h2 className="text-xl font-bold">No products found</h2><p className="mt-2 text-sm text-[#66736e]">Try another search or adjust your filters.</p></div>}</div>
+  </>;
 }

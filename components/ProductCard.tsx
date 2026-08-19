@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowUpRight, Store } from "lucide-react";
 import type { ProductWithOffers } from "@/types";
+import { SafeImage } from "@/components/SafeImage";
 
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
 export function ProductCard({ product }: { product: ProductWithOffers }) {
@@ -14,7 +14,7 @@ export function ProductCard({ product }: { product: ProductWithOffers }) {
         href={`/product/${product.slug}`}
         className="relative block aspect-[1.15] overflow-hidden bg-[#f2f5f2]"
       >
-        <Image
+        <SafeImage
           src={product.image}
           alt={product.name}
           fill
@@ -39,7 +39,7 @@ export function ProductCard({ product }: { product: ProductWithOffers }) {
         </Link>
         <div className="mt-auto pt-4">
           <p className="text-xl font-bold text-[#0c8b67]">
-            From {npr(product.lowestPrice)}
+            {product.offers.length ? `From ${npr(product.lowestPrice)}` : "Price unavailable"}
           </p>
           <div className="mt-2 flex items-center justify-between text-xs text-[#66736e]">
             <span className="flex items-center gap-1">

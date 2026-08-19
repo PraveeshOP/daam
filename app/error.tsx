@@ -1,0 +1,3 @@
+"use client";
+
+export default function ErrorPage({ reset }: { error: Error & { digest?: string }; reset: () => void }) { return <main className="container flex min-h-[60vh] items-center justify-center py-16"><div className="max-w-md text-center"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#ef745f]">Something went wrong</p><h1 className="mt-3 text-3xl font-bold">We could not load that page</h1><p className="mt-3 leading-7 text-[#66736e]">Please try again. Your products and saved data are safe.</p><button type="button" onClick={() => reset()} className="mt-7 rounded-[3px] bg-[#17221f] px-5 py-3 text-sm font-bold text-white hover:bg-[#0c8b67]">Try again</button></div></main>; }

@@ -9,7 +9,11 @@ export function OfferTable({
   stores: Store[];
 }) {
   const sorted = [...offers].sort((a, b) => a.price - b.price);
-  const best = sorted[0]?.price;
+  const inStock = sorted.filter((offer) => offer.availability === "in_stock");
+  const best = (inStock[0] || sorted[0])?.price;
+  if (!offers.length) {
+    return <div className="rounded-[4px] border border-dashed border-[#cbd8d1] bg-white p-7"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#88948e]">Where to buy</p><h2 className="mt-1 text-2xl font-bold">No offers yet</h2><p className="mt-3 text-sm leading-6 text-[#66736e]">We do not have prices for this product yet. Check back soon.</p></div>;
+  }
   return (
     <div className="overflow-hidden rounded-[4px] border border-[#e3e9e5] bg-white">
       <div className="border-b border-[#e3e9e5] p-5 sm:p-7">
@@ -23,7 +27,9 @@ export function OfferTable({
       <div>
         {sorted.map((offer) => {
           const store = stores.find((item) => item.id === offer.storeId);
-          const isBest = offer.price === best;
+          const isBest =
+            offer.price === best &&
+            (offer.availability === "in_stock" || !inStock.length);
           return (
             <div
               key={offer.id}

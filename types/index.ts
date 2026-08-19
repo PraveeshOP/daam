@@ -40,10 +40,17 @@ export type Product = {
   image: string;
   specs: { label: string; value: string }[];
   offers: Offer[];
+  offerStores?: Store[];
   history: PricePoint[];
   rating: number;
   reviewCount: number;
   featured?: boolean;
+  createdAt?: string;
 };
 
-export type ProductWithOffers = Product & { stores: number; lowestPrice: number; highestPrice: number; savings: number };
+export type ProductWithOffers = Product & {
+  stores: number;
+  lowestPrice: number;
+  highestPrice: number;
+  savings: number;
+};

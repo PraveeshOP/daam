@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Check, Heart, Star } from "lucide-react";
 import { getProduct, stores } from "@/lib/data";
 import { OfferTable } from "@/components/OfferTable";
 import { PriceHistory } from "@/components/PriceHistory";
+import { SafeImage } from "@/components/SafeImage";
 
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
 export async function generateMetadata({
@@ -15,9 +15,12 @@ export async function generateMetadata({
   const product = await getProduct((await params).slug);
   return {
     title: product
-      ? `${product.name} price comparison — daam`
+      ? `${product.name} – Price comparison in Nepal | daam`
       : "Product — daam",
     description: product?.description,
+    alternates: product
+      ? { canonical: `/product/${product.slug}` }
+      : undefined,
     openGraph: {
       title: product?.name,
       description: product?.description,
@@ -59,7 +62,7 @@ export default async function ProductPage({
       </div>
       <section className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_1.1fr] lg:items-start">
         <div className="relative aspect-square overflow-hidden rounded-[4px] bg-[#f0f5f1]">
-          <Image
+          <SafeImage
             src={product.image}
             alt={product.name}
             fill
@@ -103,12 +106,12 @@ export default async function ProductPage({
               Best price today
             </p>
             <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
-              <p className="text-3xl font-bold text-[#0c8b67]">{npr(best)}</p>
+              <p className="text-3xl font-bold text-[#0c8b67]">{product.offers.length ? npr(best) : "Price unavailable"}</p>
               <p className="text-sm font-semibold text-[#66736e]">
                 {product.stores} stores compared
               </p>
             </div>
-            {product.savings > 0 && (
+            {product.offers.length > 0 && product.savings > 0 && (
               <p className="mt-2 text-sm font-semibold text-[#0c8b67]">
                 Save up to {npr(product.savings)} by comparing
               </p>
@@ -117,7 +120,7 @@ export default async function ProductPage({
         </div>
       </section>
       <section className="mt-12 grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
-        <OfferTable offers={product.offers} stores={stores} />
+        <OfferTable offers={product.offers} stores={product.offerStores || stores} />
         <div className="rounded-[4px] border border-[#e3e9e5] bg-white p-5 sm:p-7">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#88948e]">
             At a glance

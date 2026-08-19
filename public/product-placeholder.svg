@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 780" role="img" aria-label="Product image unavailable">
+  <rect width="900" height="780" fill="#eef4f0"/>
+  <path d="M265 590h370V300H265z" fill="#d8e8df"/>
+  <circle cx="450" cy="240" r="82" fill="#c2ddd0"/>
+  <path d="M325 590V350h250v240" fill="none" stroke="#7fae9d" stroke-width="18"/>
+  <circle cx="450" cy="240" r="28" fill="#fbfcfa"/>
+</svg>

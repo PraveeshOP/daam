@@ -10,7 +10,11 @@ cp .env.example .env.local
 npm run dev
 ```
 
+Run the validation suite with `npm run lint`, `npm run typecheck`, and `npm test`.
+
 The app ships with realistic local seed data so it works immediately. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` to `.env.local`, then run [supabase/schema.sql](supabase/schema.sql) in the Supabase SQL editor to connect the relational data layer.
+
+The Supabase client is typed with the schema contract in [types/database.ts](types/database.ts). Regenerate that file from the Supabase CLI when the schema changes.
 
 ## GitHub Actions
 

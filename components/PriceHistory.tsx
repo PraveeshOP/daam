@@ -1,6 +1,15 @@
 import type { PricePoint } from "@/types";
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
 export function PriceHistory({ points }: { points: PricePoint[] }) {
+  if (points.length < 2) {
+    return (
+      <div className="rounded-[4px] border border-[#e3e9e5] bg-white p-5 sm:p-7">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#88948e]">Price history</p>
+        <h2 className="mt-1 text-2xl font-bold">Not enough price history yet</h2>
+        <p className="mt-3 text-sm leading-6 text-[#66736e]">We need at least two recorded prices to show a meaningful trend.</p>
+      </div>
+    );
+  }
   const max = Math.max(...points.map((point) => point.price));
   const min = Math.min(...points.map((point) => point.price));
   const range = max - min || 1;

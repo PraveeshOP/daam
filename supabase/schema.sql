@@ -61,11 +61,25 @@ alter table products enable row level security;
 alter table offers enable row level security;
 alter table price_history enable row level security;
 
+drop policy if exists "Public can read categories" on categories;
+drop policy if exists "Public can read stores" on stores;
+drop policy if exists "Public can read products" on products;
+drop policy if exists "Public can read offers" on offers;
+drop policy if exists "Public can read price history" on price_history;
+
 create policy "Public can read categories" on categories for select using (true);
 create policy "Public can read stores" on stores for select using (true);
 create policy "Public can read products" on products for select using (true);
 create policy "Public can read offers" on offers for select using (true);
 create policy "Public can read price history" on price_history for select using (true);
+
+create index if not exists products_slug_idx on products (slug);
+create index if not exists products_category_featured_idx on products (category_id, featured);
+create index if not exists products_name_lower_idx on products (lower(name));
+create index if not exists products_brand_lower_idx on products (lower(brand));
+create index if not exists offers_product_price_idx on offers (product_id, price);
+create index if not exists offers_store_availability_idx on offers (store_id, availability);
+create index if not exists price_history_product_recorded_idx on price_history (product_id, recorded_at desc);
 
 insert into categories (name, slug) values
   ('Smartphones', 'smartphones'), ('Laptops', 'laptops'), ('Audio', 'audio'), ('TVs', 'televisions'),
