@@ -52,7 +52,7 @@ export function ProductCard({ product }: { product: ProductWithOffers }) {
         </div>
         <Link
           href={`/product/${product.slug}`}
-          className="mt-4 flex items-center justify-center gap-2 rounded-[3px] bg-[#17221f] py-2.5 text-sm font-bold text-white transition hover:bg-[#0c8b67]"
+          className="compare-link mt-4 flex items-center justify-center gap-2 rounded-[3px] bg-[#17221f] py-2.5 text-sm font-bold text-white transition hover:bg-[#0c8b67]"
         >
           Compare prices <ArrowUpRight size={15} />
         </Link>

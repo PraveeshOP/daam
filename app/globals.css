@@ -11,4 +11,5 @@ button, input { font: inherit; }
 .container { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
 .page-grid { background-image: linear-gradient(#e9eeea 1px, transparent 1px), linear-gradient(90deg, #e9eeea 1px, transparent 1px); background-size: 48px 48px; }
 .line-clamp-2 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.compare-link { color: #ffffff !important; }
 @media (max-width: 640px) { .container { width: min(100% - 28px, 1180px); } }
