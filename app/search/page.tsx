@@ -2,7 +2,79 @@ import { searchProducts } from "@/lib/data";
 import { SearchResults, FilterSidebar } from "@/components/SearchResults";
 import { categories, stores } from "@/lib/data";
 
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; category?: string }> }) {
-  const params = await searchParams; const query = params.q ?? ""; const products = await searchProducts(query, params.category);
-  return <main className="container py-10 sm:py-14"><div className="mb-10"><p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#0c8b67]">Search results</p><h1 className="text-4xl font-bold sm:text-5xl">{query ? <>Results for <span className="text-[#0c8b67]">“{query}”</span></> : "All products"}</h1><p className="mt-3 text-[#66736e]">Compare prices from trusted stores across Nepal.</p></div><div className="grid gap-8 lg:grid-cols-[220px_1fr]"><FilterSidebar><div className="space-y-7"><div><p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Category</p><div className="space-y-2">{categories.slice(0, 6).map((item) => <p key={item.id} className="text-sm">{item.name}</p>)}</div></div><div><p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Store</p>{stores.slice(0, 4).map((item) => <p key={item.id} className="mb-2 text-sm">{item.name}</p>)}</div><div><p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Price</p><div className="flex gap-2"><input placeholder="Min" className="w-full rounded border border-[#d6dfda] px-2 py-2 text-xs" /><input placeholder="Max" className="w-full rounded border border-[#d6dfda] px-2 py-2 text-xs" /></div></div></div></FilterSidebar><section><SearchResults products={products} query={query} /></section></div></main>;
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; category?: string }>;
+}) {
+  const params = await searchParams;
+  const query = params.q ?? "";
+  const products = await searchProducts(query, params.category);
+  return (
+    <main className="container py-10 sm:py-14">
+      <div className="mb-10">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#0c8b67]">
+          Search results
+        </p>
+        <h1 className="text-4xl font-bold sm:text-5xl">
+          {query ? (
+            <>
+              Results for <span className="text-[#0c8b67]">“{query}”</span>
+            </>
+          ) : (
+            "All products"
+          )}
+        </h1>
+        <p className="mt-3 text-[#66736e]">
+          Compare prices from trusted stores across Nepal.
+        </p>
+      </div>
+      <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
+        <FilterSidebar>
+          <div className="space-y-7">
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">
+                Category
+              </p>
+              <div className="space-y-2">
+                {categories.slice(0, 6).map((item) => (
+                  <p key={item.id} className="text-sm">
+                    {item.name}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">
+                Store
+              </p>
+              {stores.slice(0, 4).map((item) => (
+                <p key={item.id} className="mb-2 text-sm">
+                  {item.name}
+                </p>
+              ))}
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">
+                Price
+              </p>
+              <div className="flex gap-2">
+                <input
+                  placeholder="Min"
+                  className="w-full rounded border border-[#d6dfda] px-2 py-2 text-xs"
+                />
+                <input
+                  placeholder="Max"
+                  className="w-full rounded border border-[#d6dfda] px-2 py-2 text-xs"
+                />
+              </div>
+            </div>
+          </div>
+        </FilterSidebar>
+        <section>
+          <SearchResults products={products} query={query} />
+        </section>
+      </div>
+    </main>
+  );
 }

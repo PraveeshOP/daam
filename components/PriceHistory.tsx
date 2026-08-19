@@ -1,3 +1,49 @@
 import type { PricePoint } from "@/types";
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
-export function PriceHistory({ points }: { points: PricePoint[] }) { const max = Math.max(...points.map((point) => point.price)); const min = Math.min(...points.map((point) => point.price)); const range = max - min || 1; return <div className="rounded-[4px] border border-[#e3e9e5] bg-white p-5 sm:p-7"><div className="mb-8 flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#88948e]">Price history</p><h2 className="mt-1 text-2xl font-bold">Lowest prices over time</h2></div><span className="rounded-full bg-[#d9f5ec] px-3 py-1.5 text-xs font-bold text-[#0c8b67]">Last 6 months</span></div><div className="relative h-48 border-b border-l border-[#dce6e0] pl-3"><div className="absolute inset-x-0 top-0 border-t border-dashed border-[#e3e9e5]" /><div className="absolute inset-x-0 top-1/2 border-t border-dashed border-[#e3e9e5]" /><div className="absolute inset-x-0 bottom-0 border-t border-dashed border-[#e3e9e5]" /><div className="flex h-full items-end justify-around gap-2 px-2">{points.map((point) => { const height = 22 + ((max - point.price) / range) * 65; return <div key={point.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><span className="text-[10px] font-bold text-[#66736e]">{npr(point.price).replace("NPR ", "")}</span><div className="w-full max-w-[44px] rounded-t-[3px] bg-[#0c8b67] transition hover:bg-[#ef745f]" style={{ height: `${height}%` }} /><span className="text-[11px] text-[#88948e]">{point.label}</span></div>; })}</div></div></div>; }
+export function PriceHistory({ points }: { points: PricePoint[] }) {
+  const max = Math.max(...points.map((point) => point.price));
+  const min = Math.min(...points.map((point) => point.price));
+  const range = max - min || 1;
+  return (
+    <div className="rounded-[4px] border border-[#e3e9e5] bg-white p-5 sm:p-7">
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#88948e]">
+            Price history
+          </p>
+          <h2 className="mt-1 text-2xl font-bold">Lowest prices over time</h2>
+        </div>
+        <span className="rounded-full bg-[#d9f5ec] px-3 py-1.5 text-xs font-bold text-[#0c8b67]">
+          Last 6 months
+        </span>
+      </div>
+      <div className="relative h-48 border-b border-l border-[#dce6e0] pl-3">
+        <div className="absolute inset-x-0 top-0 border-t border-dashed border-[#e3e9e5]" />
+        <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-[#e3e9e5]" />
+        <div className="absolute inset-x-0 bottom-0 border-t border-dashed border-[#e3e9e5]" />
+        <div className="flex h-full items-end justify-around gap-2 px-2">
+          {points.map((point) => {
+            const height = 22 + ((max - point.price) / range) * 65;
+            return (
+              <div
+                key={point.label}
+                className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+              >
+                <span className="text-[10px] font-bold text-[#66736e]">
+                  {npr(point.price).replace("NPR ", "")}
+                </span>
+                <div
+                  className="w-full max-w-[44px] rounded-t-[3px] bg-[#0c8b67] transition hover:bg-[#ef745f]"
+                  style={{ height: `${height}%` }}
+                />
+                <span className="text-[11px] text-[#88948e]">
+                  {point.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}

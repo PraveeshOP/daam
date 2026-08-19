@@ -1,15 +1,151 @@
 import Link from "next/link";
-import { ArrowRight, Search, ShieldCheck, SlidersHorizontal, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
 import { categories, getFeaturedProducts } from "@/lib/data";
 import { ProductCard } from "@/components/ProductCard";
 import { CategoryIcon } from "@/components/CategoryIcon";
 
 export default async function HomePage() {
   const featured = await getFeaturedProducts();
-  return <main>
-    <section className="page-grid overflow-hidden border-b border-[#e3e9e5]"><div className="container relative py-16 sm:py-24"><div className="max-w-[760px]"><div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#b8ddd0] bg-[#f2fbf7] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#0c8b67]"><Sparkles size={14} /> Nepal&apos;s price compass</div><h1 className="max-w-[680px] text-[clamp(2.8rem,7vw,5.9rem)] font-bold leading-[0.98] text-[#17221f]">The right price is out there<span className="text-[#ef745f]">.</span></h1><p className="mt-6 max-w-[540px] text-lg leading-8 text-[#66736e]">Compare products from trusted stores across Nepal and make your next purchase with confidence.</p><form action="/search" className="mt-9 flex max-w-[650px] overflow-hidden rounded-full border border-[#bacac2] bg-white p-1.5 shadow-[0_12px_35px_rgba(23,34,31,0.08)]"><Search className="ml-3 mt-3 shrink-0 text-[#66736e]" size={21} /><input name="q" placeholder="Try &apos;iPhone 16&apos;, &apos;MacBook Air&apos;..." className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm outline-none" /><button className="rounded-full bg-[#0c8b67] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#086e53]">Search</button></form><div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#66736e]">Popular: {['iPhone 16', 'Galaxy S25', 'MacBook Air M4', 'Sony XM5'].map((term) => <Link key={term} href={`/search?q=${encodeURIComponent(term)}`} className="font-semibold text-[#17221f] underline decoration-[#b8ddd0] underline-offset-4 hover:text-[#0c8b67]">{term}</Link>)}</div></div><div className="absolute -bottom-20 -right-10 hidden h-64 w-64 rounded-full border-[22px] border-[#d9f5ec] lg:block" /><div className="absolute right-20 top-16 hidden h-5 w-5 rounded-full bg-[#ef745f] lg:block" /></div></section>
-    <section className="container py-12 sm:py-16"><div className="mb-6 flex items-end justify-between"><div><p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#0c8b67]">Browse the essentials</p><h2 className="text-3xl font-bold sm:text-4xl">Shop by category</h2></div><Link href="/categories" className="hidden items-center gap-1 text-sm font-bold text-[#0c8b67] sm:flex">All categories <ArrowRight size={16} /></Link></div><div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">{categories.map((category) => <Link href={`/search?category=${category.slug}`} key={category.id} className="group flex min-h-[120px] flex-col justify-between rounded-[4px] p-4 transition hover:-translate-y-1" style={{ backgroundColor: category.accent }}><CategoryIcon name={category.icon as never} size={27} /><span className="text-sm font-bold leading-5">{category.name}</span></Link>)}</div></section>
-    <section className="bg-[#f0f5f1] py-12 sm:py-16"><div className="container"><div className="mb-7 flex items-end justify-between"><div><p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#ef745f]">Trending now</p><h2 className="text-3xl font-bold sm:text-4xl">Popular comparisons</h2></div><Link href="/search" className="hidden items-center gap-1 text-sm font-bold text-[#0c8b67] sm:flex">See all products <ArrowRight size={16} /></Link></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{featured.map((product) => <ProductCard key={product.id} product={product} />)}</div></div></section>
-    <section className="container grid gap-5 py-12 sm:grid-cols-3 sm:py-16"><div className="flex gap-3"><ShieldCheck className="shrink-0 text-[#0c8b67]" /><div><h3 className="font-bold">Prices you can trust</h3><p className="mt-1 text-sm leading-6 text-[#66736e]">We show when each offer was last checked.</p></div></div><div className="flex gap-3"><SlidersHorizontal className="shrink-0 text-[#0c8b67]" /><div><h3 className="font-bold">Compare your way</h3><p className="mt-1 text-sm leading-6 text-[#66736e]">Find the right balance of price and availability.</p></div></div><div className="flex gap-3"><Sparkles className="shrink-0 text-[#0c8b67]" /><div><h3 className="font-bold">Made for Nepal</h3><p className="mt-1 text-sm leading-6 text-[#66736e]">Local stores, NPR pricing, clear decisions.</p></div></div></section>
-  </main>;
+  return (
+    <main>
+      <section className="page-grid overflow-hidden border-b border-[#e3e9e5]">
+        <div className="container relative py-16 sm:py-24">
+          <div className="max-w-[760px]">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#b8ddd0] bg-[#f2fbf7] px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#0c8b67]">
+              <Sparkles size={14} /> Nepal&apos;s price compass
+            </div>
+            <h1 className="max-w-[680px] text-[clamp(2.8rem,7vw,5.9rem)] font-bold leading-[0.98] text-[#17221f]">
+              The right price is out there
+              <span className="text-[#ef745f]">.</span>
+            </h1>
+            <p className="mt-6 max-w-[540px] text-lg leading-8 text-[#66736e]">
+              Compare products from trusted stores across Nepal and make your
+              next purchase with confidence.
+            </p>
+            <form
+              action="/search"
+              className="mt-9 flex max-w-[650px] overflow-hidden rounded-full border border-[#bacac2] bg-white p-1.5 shadow-[0_12px_35px_rgba(23,34,31,0.08)]"
+            >
+              <Search className="ml-3 mt-3 shrink-0 text-[#66736e]" size={21} />
+              <input
+                name="q"
+                placeholder="Try 'iPhone 16', 'MacBook Air'..."
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm outline-none"
+              />
+              <button className="rounded-full bg-[#0c8b67] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#086e53]">
+                Search
+              </button>
+            </form>
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#66736e]">
+              Popular:{" "}
+              {["iPhone 16", "Galaxy S25", "MacBook Air M4", "Sony XM5"].map(
+                (term) => (
+                  <Link
+                    key={term}
+                    href={`/search?q=${encodeURIComponent(term)}`}
+                    className="font-semibold text-[#17221f] underline decoration-[#b8ddd0] underline-offset-4 hover:text-[#0c8b67]"
+                  >
+                    {term}
+                  </Link>
+                ),
+              )}
+            </div>
+          </div>
+          <div className="absolute -bottom-20 -right-10 hidden h-64 w-64 rounded-full border-[22px] border-[#d9f5ec] lg:block" />
+          <div className="absolute right-20 top-16 hidden h-5 w-5 rounded-full bg-[#ef745f] lg:block" />
+        </div>
+      </section>
+      <section className="container py-12 sm:py-16">
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#0c8b67]">
+              Browse the essentials
+            </p>
+            <h2 className="text-3xl font-bold sm:text-4xl">Shop by category</h2>
+          </div>
+          <Link
+            href="/categories"
+            className="hidden items-center gap-1 text-sm font-bold text-[#0c8b67] sm:flex"
+          >
+            All categories <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+          {categories.map((category) => (
+            <Link
+              href={`/search?category=${category.slug}`}
+              key={category.id}
+              className="group flex min-h-[120px] flex-col justify-between rounded-[4px] p-4 transition hover:-translate-y-1"
+              style={{ backgroundColor: category.accent }}
+            >
+              <CategoryIcon name={category.icon as never} size={27} />
+              <span className="text-sm font-bold leading-5">
+                {category.name}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+      <section className="bg-[#f0f5f1] py-12 sm:py-16">
+        <div className="container">
+          <div className="mb-7 flex items-end justify-between">
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#ef745f]">
+                Trending now
+              </p>
+              <h2 className="text-3xl font-bold sm:text-4xl">
+                Popular comparisons
+              </h2>
+            </div>
+            <Link
+              href="/search"
+              className="hidden items-center gap-1 text-sm font-bold text-[#0c8b67] sm:flex"
+            >
+              See all products <ArrowRight size={16} />
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {featured.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="container grid gap-5 py-12 sm:grid-cols-3 sm:py-16">
+        <div className="flex gap-3">
+          <ShieldCheck className="shrink-0 text-[#0c8b67]" />
+          <div>
+            <h3 className="font-bold">Prices you can trust</h3>
+            <p className="mt-1 text-sm leading-6 text-[#66736e]">
+              We show when each offer was last checked.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <SlidersHorizontal className="shrink-0 text-[#0c8b67]" />
+          <div>
+            <h3 className="font-bold">Compare your way</h3>
+            <p className="mt-1 text-sm leading-6 text-[#66736e]">
+              Find the right balance of price and availability.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Sparkles className="shrink-0 text-[#0c8b67]" />
+          <div>
+            <h3 className="font-bold">Made for Nepal</h3>
+            <p className="mt-1 text-sm leading-6 text-[#66736e]">
+              Local stores, NPR pricing, clear decisions.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
 }
