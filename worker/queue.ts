@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { getSharedRedisConnection } from "@/worker/redis";
+import { getSharedRedisConnection } from "@/lib/queue/redis";
 
 export const PRICE_COLLECTION_QUEUE = "price-collection";
 

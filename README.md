@@ -70,6 +70,20 @@ npm run queue:itti
 See [worker/README.md](worker/README.md) for the full environment variable reference and shutdown
 behavior.
 
+## Accounts, favorites, and price alerts
+
+Supabase Auth handles sign up, login, logout, and password reset (`/login`, `/signup`,
+`/forgot-password`, `/reset-password`) — no passwords are stored by this app. Signed-in users can
+save products (`/favorites`) and set a target price per product (on the product page, listed at
+`/alerts`); the price-collection pipeline itself checks alerts right after recording a genuine
+price change and queues an email through a second BullMQ queue (`notifications`), run by the same
+worker process. See [docs/accounts-and-alerts.md](docs/accounts-and-alerts.md) for the full
+architecture — how duplicate emails are prevented, and how a failed send is retried and released.
+
+Row Level Security on the `favorites` and `price_alerts` tables
+([migration](supabase/migrations/20260819_add_favorites_and_price_alerts.sql)) is what actually
+enforces "a user can only see/edit their own data", not just the Server Actions' own checks.
+
 ## GitHub Actions
 
 Pull requests and pushes to `main` run lint, typecheck, and a production build through [CI](.github/workflows/ci.yml). The optional [Vercel deployment](.github/workflows/deploy.yml) runs after `main` pushes when the repository variable `ENABLE_VERCEL_DEPLOY` is set to `true` and `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets are configured.
@@ -79,5 +93,8 @@ Pull requests and pushes to `main` run lint, typecheck, and a production build t
 - `/` home and popular comparisons
 - `/search?q=iphone` search, sorting, and filters
 - `/categories` category browse
-- `/product/apple-iphone-16-128gb` product detail, offers, and history
-- `/favorites` account placeholder
+- `/product/apple-iphone-16-128gb` product detail, offers, history, favorite/price-alert
+- `/favorites` saved products (requires login)
+- `/alerts` your price alerts (requires login)
+- `/account` email, favorite/alert counts, log out
+- `/login`, `/signup`, `/forgot-password`, `/reset-password` — Supabase Auth

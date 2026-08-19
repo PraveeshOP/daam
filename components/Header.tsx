@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Heart, Menu, Search, X } from "lucide-react";
+import { Bell, Heart, Menu, Search, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { logoutAction } from "@/lib/auth/actions";
 
-export function Header() {
+export function Header({ userEmail }: { userEmail?: string | null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const router = useRouter();
@@ -55,13 +56,39 @@ export function Header() {
             Price drops
           </Link>
         </nav>
-        <Link
-          href="/favorites"
-          aria-label="Favorites"
-          className="hidden rounded-full p-2 text-[#52605a] transition hover:bg-[#edf5f1] lg:block"
-        >
-          <Heart size={20} />
-        </Link>
+        <div className="hidden items-center gap-1 lg:flex">
+          {userEmail ? (
+            <>
+              <Link
+                href="/favorites"
+                aria-label="Favorites"
+                className="rounded-full p-2 text-[#52605a] transition hover:bg-[#edf5f1]"
+              >
+                <Heart size={20} />
+              </Link>
+              <Link
+                href="/alerts"
+                aria-label="Price alerts"
+                className="rounded-full p-2 text-[#52605a] transition hover:bg-[#edf5f1]"
+              >
+                <Bell size={20} />
+              </Link>
+              <Link
+                href="/account"
+                className="ml-1 flex items-center gap-1.5 rounded-full border border-[#d6dfda] px-3 py-1.5 text-sm font-semibold text-[#17221f] transition hover:border-[#0c8b67] hover:text-[#0c8b67]"
+              >
+                <User size={15} /> Account
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-full bg-[#17221f] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#0c8b67]"
+            >
+              Log in
+            </Link>
+          )}
+        </div>
         <button
           aria-label="Toggle menu"
           onClick={() => setOpen(!open)}
@@ -107,6 +134,37 @@ export function Header() {
             >
               Price drops
             </Link>
+            {userEmail ? (
+              <>
+                <Link onClick={() => setOpen(false)} href="/favorites" className="rounded-lg px-3 py-3 hover:bg-[#f2f7f4]">
+                  Favorites
+                </Link>
+                <Link onClick={() => setOpen(false)} href="/alerts" className="rounded-lg px-3 py-3 hover:bg-[#f2f7f4]">
+                  Price alerts
+                </Link>
+                <Link onClick={() => setOpen(false)} href="/account" className="rounded-lg px-3 py-3 hover:bg-[#f2f7f4]">
+                  Account
+                </Link>
+                <form action={logoutAction}>
+                  <button type="submit" className="w-full rounded-lg px-3 py-3 text-left hover:bg-[#f2f7f4]">
+                    Log out
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <Link onClick={() => setOpen(false)} href="/login" className="rounded-lg px-3 py-3 hover:bg-[#f2f7f4]">
+                  Log in
+                </Link>
+                <Link
+                  onClick={() => setOpen(false)}
+                  href="/signup"
+                  className="mt-1 rounded-lg bg-[#17221f] px-3 py-3 text-center text-white hover:bg-[#0c8b67]"
+                >
+                  Create account
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       )}

@@ -1,13 +1,12 @@
 import { loadEnvConfig } from "@next/env";
-import { createClient } from "@supabase/supabase-js";
 import { ensureCategory, ensureStore, importStoreProduct } from "@/collectors/core/importer";
 import type { StoreCollector } from "@/collectors/core/types";
 import type { CollectionSummary } from "@/collectors/evo/types";
-import type { Database } from "@/types/database";
+import { createServiceClient, type SupabaseServiceClient } from "@/lib/supabase/service";
 
 loadEnvConfig(process.cwd());
 
-export type SupabaseWriteClient = ReturnType<typeof createClient<Database>>;
+export type SupabaseWriteClient = SupabaseServiceClient;
 
 export type RunOptions = {
   limit?: number;
@@ -24,12 +23,9 @@ function emptySummary(): CollectionSummary {
   return { discovered: 0, priceChanges: 0, matchedProducts: 0, createdProducts: 0, createdOffers: 0, updatedOffers: 0, uncertainMatches: [], errors: [] };
 }
 
-export function createWriteClient(): SupabaseWriteClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL are required for writes; use --dry-run to parse without writing.");
-  return createClient<Database>(url, serviceKey);
-}
+/** @deprecated use createServiceClient from lib/supabase/service.ts — kept as an alias so
+ * existing imports of this name keep working. */
+export const createWriteClient = createServiceClient;
 
 /**
  * Runs one store collector end-to-end: fetch + normalize (collector.collect), match against

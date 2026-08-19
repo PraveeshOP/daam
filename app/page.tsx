@@ -9,9 +9,12 @@ import {
 import { categories, getFeaturedProducts } from "@/lib/data";
 import { ProductCard } from "@/components/ProductCard";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { getCurrentUser } from "@/lib/supabase/server";
+import { getFavoriteProductIds } from "@/lib/favorites";
 
 export default async function HomePage() {
-  const featured = await getFeaturedProducts();
+  const [featured, user] = await Promise.all([getFeaturedProducts(), getCurrentUser()]);
+  const favoriteIds = user ? await getFavoriteProductIds(user.id) : new Set<string>();
   return (
     <main>
       <section className="page-grid overflow-hidden border-b border-[#e3e9e5]">
@@ -112,7 +115,12 @@ export default async function HomePage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {featured.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard
+                key={product.id}
+                product={product}
+                isFavorited={favoriteIds.has(product.id)}
+                isAuthenticated={Boolean(user)}
+              />
             ))}
           </div>
         </div>

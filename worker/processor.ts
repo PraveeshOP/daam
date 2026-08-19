@@ -3,7 +3,7 @@ import type { Redis } from "ioredis";
 import { getCollector } from "@/collectors/registry";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import { acquireStoreLock, releaseStoreLock } from "@/worker/lock";
-import { log } from "@/worker/logger";
+import { log } from "@/lib/logger";
 import type { PriceCollectionJobData } from "@/worker/queue";
 
 const JOB_TIMEOUT_MS = Number(process.env.COLLECTION_JOB_TIMEOUT_MS || 5 * 60_000);

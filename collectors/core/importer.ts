@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { findBestMatch, productSlug } from "@/collectors/core/matcher";
 import type { StoreProduct, CollectionSummary } from "@/collectors/evo/types";
 import type { Database } from "@/types/database";
+import { evaluateProductPriceAlerts } from "@/lib/alerts/evaluate";
+import { logError } from "@/lib/logger";
 
 type StoreConfig = { name: string; slug: string; websiteUrl: string; logoUrl?: string; description?: string };
 type Client = ReturnType<typeof createClient<Database>>;
@@ -56,6 +58,15 @@ export async function importStoreProduct(client: Client, item: StoreProduct, sto
       const { error } = await client.from("price_history").insert({ product_id: productId, store_id: storeId, price: item.price, recorded_at: new Date().toISOString() });
       if (error) throw new Error(`price history insert failed: ${error.message}`);
       summary.priceChanges += 1;
+      // Phase-5 hook: a genuine price change just landed, so re-check whether any user's price
+      // alert for this product is now met. Never allowed to fail the collection job (section 19
+      // of the phase-5 spec) — a Redis/DB hiccup here just means the alert is picked up on the
+      // next price change instead.
+      try {
+        await evaluateProductPriceAlerts(client, productId);
+      } catch (alertError) {
+        logError("alerts", `evaluation failed for product ${productId}: ${alertError instanceof Error ? alertError.message : alertError}`);
+      }
     }
   }
 }

@@ -5,6 +5,12 @@ import { getProduct, stores } from "@/lib/data";
 import { OfferTable } from "@/components/OfferTable";
 import { PriceHistory } from "@/components/PriceHistory";
 import { SafeImage } from "@/components/SafeImage";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { PriceAlertForm } from "@/components/PriceAlertForm";
+import { getCurrentUser } from "@/lib/supabase/server";
+import { getFavoriteProductIds } from "@/lib/favorites";
+import { getUserAlertForProduct } from "@/lib/alerts/queries";
+import { alertStatus } from "@/lib/alerts/status";
 
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
 export async function generateMetadata({
@@ -44,6 +50,19 @@ export default async function ProductPage({
       </main>
     );
   const best = product.lowestPrice;
+  const user = await getCurrentUser();
+  const [favoriteIds, existingAlertRow] = await Promise.all([
+    user ? getFavoriteProductIds(user.id) : Promise.resolve(new Set<string>()),
+    user ? getUserAlertForProduct(user.id, product.id) : Promise.resolve(null),
+  ]);
+  const existingAlert = existingAlertRow
+    ? {
+        id: existingAlertRow.id,
+        targetPrice: existingAlertRow.targetPrice,
+        triggeredAt: existingAlertRow.triggeredAt,
+        status: alertStatus({ is_active: existingAlertRow.isActive, triggered_at: existingAlertRow.triggeredAt }),
+      }
+    : null;
   return (
     <main className="container py-8 sm:py-12">
       <div className="mb-8 flex items-center gap-2 text-sm text-[#66736e]">
@@ -76,12 +95,12 @@ export default async function ProductPage({
             <span className="rounded-full bg-[#d9f5ec] px-3 py-1.5 text-xs font-bold text-[#0c8b67]">
               {product.category}
             </span>
-            <button
-              aria-label="Save product"
-              className="rounded-full border border-[#d6dfda] p-2 text-[#66736e] transition hover:border-[#0c8b67] hover:text-[#0c8b67]"
-            >
-              <Heart size={19} />
-            </button>
+            <FavoriteButton
+              productId={product.id}
+              initialFavorited={favoriteIds.has(product.id)}
+              isAuthenticated={Boolean(user)}
+              variant="labeled"
+            />
           </div>
           <p className="text-sm font-semibold text-[#88948e]">
             {product.brand}
@@ -142,8 +161,14 @@ export default async function ProductPage({
           </p>
         </div>
       </section>
-      <section className="mt-8">
+      <section id="price-alert" className="mt-8 grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
         <PriceHistory points={product.history} />
+        <PriceAlertForm
+          productId={product.id}
+          currentLowestPrice={best}
+          isAuthenticated={Boolean(user)}
+          existingAlert={existingAlert}
+        />
       </section>
       <Link
         href="/search"

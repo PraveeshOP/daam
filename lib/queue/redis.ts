@@ -1,6 +1,6 @@
 import { loadEnvConfig } from "@next/env";
 import IORedis, { type Redis } from "ioredis";
-import { log, logError } from "@/worker/logger";
+import { log, logError } from "@/lib/logger";
 
 loadEnvConfig(process.cwd());
 
@@ -8,6 +8,10 @@ loadEnvConfig(process.cwd());
  * Creates a dedicated Redis connection. BullMQ Workers hold a blocking connection open, so
  * each Worker/Queue/QueueEvents that needs one calls this once at startup and reuses the
  * instance for its lifetime — never per job. `name` is only for readable error logs.
+ *
+ * Lives under lib/ (not worker/) because both the worker process and the price-collection
+ * pipeline (collectors/core/importer.ts, via lib/alerts/evaluate.ts) need a queue connection —
+ * the importer enqueues notification jobs without depending on worker-only code.
  */
 export function createRedisConnection(name: string): Redis {
   const url = process.env.REDIS_URL;
@@ -26,7 +30,7 @@ export function createRedisConnection(name: string): Redis {
 
 let sharedConnection: Redis | null = null;
 
-/** One shared, non-blocking connection reused by the Queue and the scheduler. */
+/** One shared, non-blocking connection reused by the queues and the scheduler. */
 export function getSharedRedisConnection(): Redis {
   if (!sharedConnection) sharedConnection = createRedisConnection("shared");
   return sharedConnection;

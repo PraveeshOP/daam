@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/Header";
+import { getCurrentUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "daam — Compare prices in Nepal",
@@ -8,13 +9,14 @@ export const metadata: Metadata = {
     "Compare prices from trusted stores across Nepal and shop smarter.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const user = await getCurrentUser();
   return (
     <html lang="en">
       <body>
-      <Header />
+      <Header userEmail={user?.email ?? null} />
       {children}
       <footer className="border-t border-[#e3e9e5] bg-white">
         <div className="container flex flex-col gap-3 py-8 text-sm text-[#66736e] sm:flex-row sm:items-center sm:justify-between">

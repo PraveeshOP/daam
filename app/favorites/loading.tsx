@@ -1,0 +1,2 @@
+function Skeleton({ className = "" }: { className?: string }) { return <div className={`animate-pulse rounded-[4px] bg-[#e8efea] ${className}`} />; }
+export default function FavoritesLoading() { return <main className="container py-10 sm:py-14"><Skeleton className="h-10 w-64" /><Skeleton className="mt-4 h-5 w-96" /><div className="mt-8 grid gap-4"><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /></div></main>; }

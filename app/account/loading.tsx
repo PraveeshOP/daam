@@ -1,0 +1,2 @@
+function Skeleton({ className = "" }: { className?: string }) { return <div className={`animate-pulse rounded-[4px] bg-[#e8efea] ${className}`} />; }
+export default function AccountLoading() { return <main className="container py-10 sm:py-14"><Skeleton className="h-10 w-64" /><div className="mt-8 grid gap-4 sm:grid-cols-2"><Skeleton className="h-32" /><div className="grid grid-cols-2 gap-4"><Skeleton className="h-32" /><Skeleton className="h-32" /></div></div></main>; }
