@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { ensureCategory, ensureStore, importStoreProduct } from "@/collectors/core/importer";
+import { ensureCategory, ensureStore, importStoreProduct, type ExistingProduct } from "@/collectors/core/importer";
 import type { StoreCollector } from "@/collectors/core/types";
 import type { CollectionSummary } from "@/collectors/evo/types";
 import { createServiceClient, type SupabaseServiceClient } from "@/lib/supabase/service";
@@ -21,7 +21,7 @@ export type RunResult = {
 };
 
 function emptySummary(): CollectionSummary {
-  return { discovered: 0, priceChanges: 0, matchedProducts: 0, createdProducts: 0, createdOffers: 0, updatedOffers: 0, uncertainMatches: [], errors: [] };
+  return { discovered: 0, priceChanges: 0, matchedProducts: 0, createdProducts: 0, createdOffers: 0, updatedOffers: 0, uncertainMatches: [], errors: [], priceAnomalies: [] };
 }
 
 /** @deprecated use createServiceClient from lib/supabase/service.ts — kept as an alias so
@@ -51,12 +51,25 @@ export async function runStoreCollection(collector: StoreCollector, options: Run
   const storeId = await ensureStore(client, collector.store);
   const categoryId = await ensureCategory(client, collector.category.name, collector.category.slug);
 
+  // §H2 (phase-9 audit): fetched once per collection run, not once per discovered product —
+  // the old per-item query capped at 1000 rows with no `order by`, so once the catalog grew
+  // past that cap the matcher's candidate pool became both non-deterministic *and* wasteful
+  // (re-fetched from scratch for every single item). Ordering by `created_at` keeps the cap
+  // deterministic in the meantime; if the catalog genuinely outgrows 1000 products this should
+  // become a narrower server-side candidate query (e.g. by brand) rather than a wider client-side
+  // scan.
+  const { data: existingRows, error: candidateError } = await client.from("products").select("id, name, brand, specifications").order("created_at", { ascending: true }).limit(1000);
+  if (candidateError) throw new Error(`candidate lookup failed: ${candidateError.message}`);
+  const existingProducts = (existingRows || []) as ExistingProduct[];
+
   await withSpan("collection.import", { "pricenepal.store_id": collector.storeId, "pricenepal.product_count": result.products.length }, async () => {
     for (const product of result.products) {
       try {
         await withSpan("collection.import_product", { "pricenepal.store_id": collector.storeId, "pricenepal.product_name": product.name }, () =>
-          importStoreProduct(client, product, storeId, categoryId, summary),
+          importStoreProduct(client, product, storeId, categoryId, summary, existingProducts),
         );
+        // A newly created product this run is itself a valid match candidate for the *next*
+        // product in this same batch (two near-identical listings discovered in one run).
       } catch (error) {
         summary.errors.push({ url: product.productUrl, message: error instanceof Error ? error.message : "database error" });
       }
@@ -101,6 +114,10 @@ export function formatSummary(storeName: string, summary: CollectionSummary, dur
   if (summary.uncertainMatches.length) {
     lines.push("", "Uncertain matches:");
     for (const match of summary.uncertainMatches) lines.push(`  ? ${match.name} -> ${match.candidate} (${match.confidence}%)`);
+  }
+  if (summary.priceAnomalies.length) {
+    lines.push("", "Suspicious price changes (written, but worth a manual look):");
+    for (const anomaly of summary.priceAnomalies) lines.push(`  ! ${anomaly.name}: NPR ${anomaly.oldPrice} -> NPR ${anomaly.newPrice}`);
   }
   if (summary.errors.length) {
     lines.push("", "Errors:");

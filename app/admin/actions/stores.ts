@@ -8,6 +8,52 @@ import { getCollector } from "@/collectors/registry";
 
 export type TriggerCollectionResult = { ok: true; message: string } | { error: string };
 
+const trimmed = (formData: FormData, name: string) => String(formData.get(name) || "").trim();
+
+const PARTNERSHIP_STATUSES = ["none", "pending", "active", "paused"] as const;
+export type PartnershipActionState = { error?: string; success?: string } | undefined;
+
+/**
+ * §6/§27: the only write path for the affiliate/partnership fields added in the phase-8
+ * migration. Reuses the same `is_admin()`-backed RLS the rest of `stores` already has (phase 6)
+ * as the second line of defense — this action is the first.
+ */
+export async function updateStorePartnershipAction(_prevState: PartnershipActionState, formData: FormData): Promise<PartnershipActionState> {
+  let admin;
+  try {
+    admin = await assertAdmin();
+  } catch (error) {
+    return { error: error instanceof AdminAuthError ? error.message : "Not authorized." };
+  }
+
+  const id = trimmed(formData, "storeId");
+  const partnershipStatus = trimmed(formData, "partnershipStatus");
+  const affiliateEnabled = trimmed(formData, "affiliateEnabled") === "true";
+  const affiliateNetwork = trimmed(formData, "affiliateNetwork");
+  const affiliateTrackingId = trimmed(formData, "affiliateTrackingId");
+
+  if (!id) return { error: "Missing store." };
+  if (!PARTNERSHIP_STATUSES.includes(partnershipStatus as (typeof PARTNERSHIP_STATUSES)[number])) {
+    return { error: "Invalid partnership status." };
+  }
+
+  const { error } = await admin.supabase
+    .from("stores")
+    .update({
+      partnership_status: partnershipStatus,
+      affiliate_enabled: affiliateEnabled,
+      affiliate_network: affiliateNetwork || null,
+      affiliate_tracking_id: affiliateTrackingId || null,
+    })
+    .eq("id", id);
+  if (error) return { error: "Could not save partnership settings." };
+
+  await logAdminAction(admin, "store.partnership_update", "store", id, { partnershipStatus, affiliateEnabled });
+  revalidatePath(`/admin/stores/${id}`);
+  revalidatePath("/admin/stores");
+  return { success: "Partnership settings saved." };
+}
+
 /**
  * §8: queues a job through the existing BullMQ queue — never runs the collector inside this
  * request. Checks for an already-queued/active job for the same store first, so clicking the

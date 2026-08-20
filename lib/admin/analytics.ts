@@ -152,6 +152,54 @@ export async function getConversionMetrics(since: Date): Promise<ConversionMetri
   };
 }
 
+/**
+ * §14/§16/§24: outbound-click totals split by destination type, reusing the same `store_click`
+ * events and `analytics_top_stores`/`analytics_top_products` RPCs the rest of this file already
+ * uses — no separate/duplicate tracking table for affiliate clicks. Purchases/revenue are
+ * deliberately not modeled here: the site never learns whether a click became a sale, so the UI
+ * shows that honestly rather than inventing a number (§14).
+ */
+export type OutboundClickMetrics = {
+  total: number;
+  affiliate: number;
+  direct: number;
+  byStore: TopStore[];
+  byProduct: TopProduct[];
+};
+
+export async function getOutboundClickMetrics(since: Date, limit = 10): Promise<OutboundClickMetrics> {
+  const supabase = await createServerSupabaseClient();
+  const countWhere = (destinationType?: "affiliate" | "direct") => {
+    let query = supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("event_name", "store_click").gte("created_at", since.toISOString());
+    if (destinationType) query = query.eq("properties->>destination_type", destinationType);
+    return query;
+  };
+
+  const [{ count: total }, { count: affiliate }, { count: direct }, stores, products] = await Promise.all([
+    countWhere(),
+    countWhere("affiliate"),
+    countWhere("direct"),
+    getStoreMetrics(since, limit),
+    supabase.rpc("analytics_top_products", { p_since: since.toISOString(), p_event_name: "store_click", p_limit: limit }),
+  ]);
+
+  const productIds = (products.data || []).map((row) => row.product_id);
+  const names = await namesForProducts(productIds);
+
+  return {
+    total: total ?? 0,
+    affiliate: affiliate ?? 0,
+    direct: direct ?? 0,
+    byStore: stores.mostClicked,
+    byProduct: (products.data || []).map((row) => ({
+      productId: row.product_id,
+      name: names.get(row.product_id)?.name ?? "Unknown product",
+      slug: names.get(row.product_id)?.slug ?? "",
+      count: Number(row.event_count),
+    })),
+  };
+}
+
 export type DailyPoint = { day: string; count: number };
 
 export async function getDailySeries(since: Date, eventName: string): Promise<DailyPoint[]> {

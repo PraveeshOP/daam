@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { getStoreOverview } from "@/lib/admin/stores";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { RunCollectionButton } from "@/components/admin/RunCollectionButton";
+import { StorePartnershipForm } from "@/components/admin/StorePartnershipForm";
 
 export const metadata: Metadata = { title: "Store — PriceNepal Admin" };
 
@@ -79,6 +80,27 @@ export default async function AdminStoreDetailPage({ params }: { params: Promise
           <p className="mt-1 text-sm text-[#7a1f14]">{store.lastError}</p>
         </div>
       )}
+
+      <section className="mt-8 rounded-[4px] border border-[#e3e9e5] bg-white p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold">Affiliate / partnership</h2>
+          <StatusBadge
+            label={`Affiliate URLs — ${store.affiliateUrlCounts.valid} valid, ${store.affiliateUrlCounts.invalid} invalid, ${store.affiliateUrlCounts.none} none`}
+            tone={store.affiliateUrlCounts.invalid > 0 ? "amber" : "gray"}
+          />
+        </div>
+        <div className="mt-4">
+          <StorePartnershipForm
+            storeId={store.id}
+            initial={{
+              partnershipStatus: store.partnershipStatus,
+              affiliateEnabled: store.affiliateEnabled,
+              affiliateNetwork: store.affiliateNetwork,
+              affiliateTrackingId: store.affiliateTrackingId,
+            }}
+          />
+        </div>
+      </section>
 
       <section className="mt-8 rounded-[4px] border border-[#e3e9e5] bg-white">
         <div className="border-b border-[#e3e9e5] p-5">

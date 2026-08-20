@@ -37,6 +37,8 @@ type DatabaseStore = {
   slug: string;
   logo_url: string | null;
   description: string | null;
+  affiliate_enabled?: boolean;
+  partnership_status?: string;
 };
 
 type DatabaseOffer = {
@@ -49,6 +51,7 @@ type DatabaseOffer = {
   availability: string;
   is_disabled?: boolean;
   product_url: string;
+  affiliate_url?: string | null;
   last_checked: string;
   stores: DatabaseStore | null;
 };
@@ -71,7 +74,10 @@ export type DatabaseProduct = {
   created_at: string;
   categories: { name: string; slug: string } | null;
   offers: DatabaseOffer[] | null;
-  price_history: DatabaseHistory[] | null;
+  // §9-critical (phase-9 audit): list views (getFeaturedProducts/searchProducts) never select
+  // price_history at all — ProductCard, the only thing that renders those results, doesn't use
+  // it — so this is optional/absent there, and only present (bounded to ~6 months) on getProduct.
+  price_history?: DatabaseHistory[] | null;
 };
 
 const asAvailability = (value: string): Availability =>
@@ -83,6 +89,8 @@ const asStore = (store: DatabaseStore): Store => ({
   slug: store.slug,
   logo: store.logo_url?.slice(0, 1).toUpperCase() || store.name.slice(0, 1),
   delivery: store.description || "Delivery across Nepal",
+  affiliateEnabled: store.affiliate_enabled ?? false,
+  partnershipStatus: store.partnership_status ?? "none",
 });
 
 export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
@@ -108,10 +116,12 @@ export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
       offer.previous_price === null ? undefined : Number(offer.previous_price),
     availability: asAvailability(offer.availability),
     productUrl: offer.product_url,
+    affiliateUrl: offer.affiliate_url || undefined,
     lastChecked: new Date(offer.last_checked).toLocaleDateString("en-NP", {
       month: "short",
       day: "numeric",
     }),
+    lastCheckedAt: offer.last_checked,
   })),
   offerStores: (row.offers || [])
     .map((offer) => offer.stores)
@@ -141,14 +151,20 @@ export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
   createdAt: row.created_at,
 });
 
-const productSelect =
-  "*, categories!inner(name, slug), offers(*, stores(id, name, slug, logo_url, description)), price_history(price, recorded_at)";
+// §9-critical (phase-9 audit): the offer/store columns list views actually need, without
+// price_history — a homepage/search request used to drag every historical price point ever
+// recorded for every matching product, unfiltered by date or count, even though ProductCard (the
+// only thing rendering these results) never reads `history`. getProduct has its own select below
+// that adds price_history back, bounded to the window the UI actually shows.
+const productListSelect =
+  "*, categories!inner(name, slug), offers(*, stores(id, name, slug, logo_url, description, affiliate_enabled, partnership_status))";
+const PRICE_HISTORY_MONTHS = 6;
 
 export async function getFeaturedProducts() {
   if (!supabase) return products.filter((product) => product.featured).map(enrich);
   const { data, error } = await supabase
     .from("products")
-    .select(productSelect)
+    .select(productListSelect)
     .eq("featured", true)
     .eq("status", "active")
     .limit(8);
@@ -217,7 +233,14 @@ export async function searchProducts(query = "", filters: SearchFilters = {}) {
       .map(enrich);
     return sortProducts(results, filters.sort);
   }
-  let request = supabase.from("products").select(productSelect).eq("status", "active");
+  // §9-critical (phase-9 audit): an empty/broad query used to return the entire active catalog
+  // with no cap at all — this is a stopgap ceiling, not real pagination (see the searchProducts
+  // doc comment above SearchFilters for why proper paginated + faceted search is a follow-up,
+  // not a same-patch fix: FilterSidebar's facets and the in-memory store/price/stock filters
+  // below both need the full matching set to stay correct, which real pagination would have to
+  // account for deliberately rather than as a quick tweak).
+  const SEARCH_RESULT_CAP = 200;
+  let request = supabase.from("products").select(productListSelect).eq("status", "active").limit(SEARCH_RESULT_CAP);
   const safeQuery = query.replace(/[%,()]/g, " ").trim();
   if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
   if (filters.category) request = request.eq("categories.slug", filters.category);
@@ -241,16 +264,24 @@ export async function searchProducts(query = "", filters: SearchFilters = {}) {
   return sortProducts(results, filters.sort);
 }
 
+// The one place price_history is actually rendered (PriceHistory's "Last 6 months" chart) — the
+// query is bounded to match what that label claims, instead of fetching every point ever recorded
+// (§9-high, phase-9 audit) and relying on client-side code to (or forget to) trim it back down.
+const productDetailSelect = `${productListSelect}, price_history(price, recorded_at)`;
+
 export async function getProduct(slug: string) {
   if (!supabase) {
     const product = products.find((item) => item.slug === slug);
     return product ? enrich(product) : null;
   }
+  const sinceDate = new Date();
+  sinceDate.setMonth(sinceDate.getMonth() - PRICE_HISTORY_MONTHS);
   const { data, error } = await supabase
     .from("products")
-    .select(productSelect)
+    .select(productDetailSelect)
     .eq("slug", slug)
     .eq("status", "active")
+    .gte("price_history.recorded_at", sinceDate.toISOString())
     .maybeSingle();
   if (error || !data) return null;
   return enrich(mapDatabaseProduct(data as unknown as DatabaseProduct));

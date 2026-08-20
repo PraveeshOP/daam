@@ -9,6 +9,7 @@ import {
   getStoreMetrics,
   getAlertMetrics,
   getConversionMetrics,
+  getOutboundClickMetrics,
   getDailySeries,
   type TimeRange,
 } from "@/lib/admin/analytics";
@@ -26,13 +27,14 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
   const range = (RANGES.includes(params.range as TimeRange) ? params.range : "7d") as TimeRange;
   const since = rangeSince(range);
 
-  const [users, search, products, stores, alerts, conversion, viewsSeries, searchSeries, clicksSeries, alertsSeries] = await Promise.all([
+  const [users, search, products, stores, alerts, conversion, outbound, viewsSeries, searchSeries, clicksSeries, alertsSeries] = await Promise.all([
     getUserMetrics(since),
     getSearchMetrics(since),
     getProductMetrics(since),
     getStoreMetrics(since),
     getAlertMetrics(),
     getConversionMetrics(since),
+    getOutboundClickMetrics(since),
     getDailySeries(since, "product_view"),
     getDailySeries(since, "search"),
     getDailySeries(since, "store_click"),
@@ -126,6 +128,23 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
           <p className="mb-3 text-sm font-bold text-[#66736e]">Alerts triggered over time ({RANGE_LABELS[range]})</p>
           <SimpleBarChart points={alertsSeries} />
         </div>
+      </section>
+
+      {/* Affiliate / outbound clicks */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-lg font-bold">Affiliate performance ({RANGE_LABELS[range]})</h2>
+        <div className="grid grid-cols-3 gap-4">
+          <Metric label="Total outbound clicks" value={outbound.total} />
+          <Metric label="Via affiliate link" value={outbound.affiliate} />
+          <Metric label="Direct to store" value={outbound.direct} />
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <TopList title="Outbound clicks by store" rows={outbound.byStore.map((row) => ({ label: row.name, count: row.count }))} />
+          <TopList title="Outbound clicks by product" rows={outbound.byProduct.map((row) => ({ label: row.name, count: row.count, href: row.slug ? `/product/${row.slug}` : undefined }))} />
+        </div>
+        <p className="mt-3 rounded-[3px] border border-dashed border-[#d6dfda] px-3 py-2.5 text-xs font-semibold text-[#88948e]">
+          Purchases / revenue: Not available. PriceNepal only ever observes the outbound click — no store partner currently reports back whether it became a sale, so no conversion or revenue figure is shown here.
+        </p>
       </section>
 
       {/* Conversion */}

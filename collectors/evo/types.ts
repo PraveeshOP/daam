@@ -26,4 +26,7 @@ export type CollectionSummary = {
   updatedOffers: number;
   uncertainMatches: { name: string; candidate: string; confidence: number }[];
   errors: { url: string; message: string }[];
+  /** §H1 (phase-9): genuine price changes that swung >5x or <0.2x from the last recorded price —
+   * still written (never silently dropped), just flagged for admin review. */
+  priceAnomalies: { name: string; oldPrice: number; newPrice: number }[];
 };

@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { staleThresholdMs } from "@/lib/admin/stores";
+import { validateAffiliateUrl, type AffiliateUrlValidation } from "@/lib/stores/destination";
 
 export type OfferFilter = "all" | "stale" | "invalid_price" | "out_of_stock" | "disabled" | "duplicate_url";
 
@@ -14,6 +15,8 @@ export type AdminOfferListItem = {
   lastChecked: string;
   productUrl: string;
   isStale: boolean;
+  affiliateUrl: string | null;
+  affiliateUrlStatus: AffiliateUrlValidation;
 };
 
 const PAGE_SIZE = 25;
@@ -30,7 +33,7 @@ export async function listAdminOffers(filter: OfferFilter, page: number) {
   const to = from + PAGE_SIZE - 1;
   const staleBefore = new Date(Date.now() - staleThresholdMs()).toISOString();
 
-  const baseSelect = "id, product_id, price, availability, is_disabled, last_checked, product_url, products(name), stores(name)";
+  const baseSelect = "id, product_id, price, availability, is_disabled, last_checked, product_url, affiliate_url, products(name), stores(name)";
 
   if (filter === "stale" || filter === "duplicate_url") {
     // These need a wider scan to detect; cap it well below "the whole table" and say so in the UI.
@@ -59,7 +62,7 @@ export async function listAdminOffers(filter: OfferFilter, page: number) {
 function mapRows(data: unknown): AdminOfferListItem[] {
   type Row = {
     id: string; product_id: string; price: number | string; availability: string; is_disabled: boolean;
-    last_checked: string; product_url: string; products: { name: string } | null; stores: { name: string } | null;
+    last_checked: string; product_url: string; affiliate_url: string | null; products: { name: string } | null; stores: { name: string } | null;
   };
   const staleCutoff = Date.now() - staleThresholdMs();
   return ((data || []) as Row[]).map((row) => ({
@@ -72,6 +75,8 @@ function mapRows(data: unknown): AdminOfferListItem[] {
     isDisabled: row.is_disabled,
     lastChecked: row.last_checked,
     productUrl: row.product_url,
+    affiliateUrl: row.affiliate_url,
+    affiliateUrlStatus: validateAffiliateUrl(row.affiliate_url),
     isStale: new Date(row.last_checked).getTime() < staleCutoff,
   }));
 }
