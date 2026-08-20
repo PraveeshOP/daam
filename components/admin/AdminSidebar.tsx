@@ -1,11 +1,13 @@
 import Link from "next/link";
 import {
   LayoutDashboard,
+  BarChart3,
   Package,
   Store,
   Tags,
   GitMerge,
   RefreshCw,
+  Activity,
   ShieldAlert,
   ArrowLeft,
   LogOut,
@@ -14,11 +16,13 @@ import { logoutAction } from "@/lib/auth/actions";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/stores", label: "Stores", icon: Store },
   { href: "/admin/offers", label: "Offers", icon: Tags },
   { href: "/admin/matches", label: "Product Matches", icon: GitMerge },
   { href: "/admin/collections", label: "Collections", icon: RefreshCw },
+  { href: "/admin/observability", label: "Observability", icon: Activity },
   { href: "/admin/data-quality", label: "Data Quality", icon: ShieldAlert },
 ];
 

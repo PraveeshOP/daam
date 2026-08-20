@@ -92,6 +92,20 @@ second system. See [docs/admin-dashboard.md](docs/admin-dashboard.md) for how au
 match review, and collection monitoring actually work, and how to promote your own account to
 admin (there's deliberately no self-service way to do that from the app itself).
 
+## Analytics and observability
+
+Product analytics (search, product views, store clicks, favorites, price alerts) and system
+observability (OpenTelemetry traces/metrics on the collection pipeline, BullMQ queue monitoring,
+store health scores) are kept deliberately separate — see
+[docs/analytics-and-observability.md](docs/analytics-and-observability.md) for what's tracked,
+what's explicitly excluded (no passwords, tokens, IPs, or request bodies), and how each admin
+dashboard section (`/admin/analytics`, `/admin/observability`) reads real data instead of a second
+tracking system layered on top of what phases 4–6 already built.
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` to export traces/metrics to a real collector (Jaeger, Grafana,
+Honeycomb, ...); unset, they print to the console (worker) or are simply not collected (web) —
+no infrastructure required for local dev.
+
 ## GitHub Actions
 
 Pull requests and pushes to `main` run lint, typecheck, and a production build through [CI](.github/workflows/ci.yml). The optional [Vercel deployment](.github/workflows/deploy.yml) runs after `main` pushes when the repository variable `ENABLE_VERCEL_DEPLOY` is set to `true` and `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets are configured.
@@ -106,4 +120,4 @@ Pull requests and pushes to `main` run lint, typecheck, and a production build t
 - `/alerts` your price alerts (requires login)
 - `/account` email, favorite/alert counts, log out
 - `/login`, `/signup`, `/forgot-password`, `/reset-password` — Supabase Auth
-- `/admin` — dashboard, products, stores, offers, matches, collections, data quality, audit log (requires the `admin` role)
+- `/admin` — dashboard, analytics, products, stores, offers, matches, collections, observability, data quality, audit log (requires the `admin` role)

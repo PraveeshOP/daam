@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { trackEvent } from "@/lib/analytics/track";
+import { getTrackingIdentity } from "@/lib/analytics/identity";
 
 export type ToggleFavoriteResult =
   | { ok: true; favorited: boolean }
@@ -27,15 +30,19 @@ export async function toggleFavorite(productId: string): Promise<ToggleFavoriteR
     .maybeSingle();
   if (lookupError) return { ok: false, reason: "error" };
 
+  const { anonymousId } = await getTrackingIdentity();
+
   if (existing) {
     const { error } = await supabase.from("favorites").delete().eq("id", existing.id);
     if (error) return { ok: false, reason: "error" };
     revalidatePath("/favorites");
+    after(() => trackEvent({ eventName: "favorite_removed", userId: user.id, anonymousId, productId, properties: { product_id: productId } }));
     return { ok: true, favorited: false };
   }
 
   const { error } = await supabase.from("favorites").insert({ user_id: user.id, product_id: productId });
   if (error) return { ok: false, reason: "error" };
   revalidatePath("/favorites");
+  after(() => trackEvent({ eventName: "favorite_added", userId: user.id, anonymousId, productId, properties: { product_id: productId } }));
   return { ok: true, favorited: true };
 }

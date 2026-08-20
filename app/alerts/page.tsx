@@ -94,6 +94,7 @@ export default async function AlertsPage() {
                   </Link>
                   <form action={deleteAlertAction}>
                     <input type="hidden" name="alertId" value={alert.id} />
+                    <input type="hidden" name="productId" value={alert.productId} />
                     <button type="submit" className="rounded-[3px] border border-[#d6dfda] px-4 py-2.5 text-sm font-bold text-[#66736e] transition hover:border-[#ef745f] hover:text-[#ef745f]">
                       Delete
                     </button>

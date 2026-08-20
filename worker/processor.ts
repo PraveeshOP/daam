@@ -6,6 +6,8 @@ import { acquireStoreLock, releaseStoreLock } from "@/worker/lock";
 import { log } from "@/lib/logger";
 import type { PriceCollectionJobData } from "@/lib/queue/priceCollection";
 import type { CollectionSummary } from "@/collectors/evo/types";
+import { withSpan } from "@/lib/otel/tracing";
+import { storeCollectionDuration, storeCollectionFailureTotal, storeCollectionSuccessTotal, productsCollectedTotal, productsMatchedTotal, productsCreatedTotal, priceChangesTotal } from "@/lib/otel/metrics";
 
 const JOB_TIMEOUT_MS = Number(process.env.COLLECTION_JOB_TIMEOUT_MS || 5 * 60_000);
 const LOCK_TTL_MS = JOB_TIMEOUT_MS + 60_000;
@@ -31,11 +33,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
+function recordCollectionMetrics(storeId: string, summary: CollectionSummary, durationMs: number) {
+  const attributes = { "pricenepal.store_id": storeId };
+  storeCollectionSuccessTotal.add(1, attributes);
+  storeCollectionDuration.record(durationMs, attributes);
+  productsCollectedTotal.add(summary.discovered, attributes);
+  productsMatchedTotal.add(summary.matchedProducts, attributes);
+  productsCreatedTotal.add(summary.createdProducts, attributes);
+  priceChangesTotal.add(summary.priceChanges, attributes);
+}
+
 /**
  * Job received -> identify store -> run collector -> normalize -> match canonical products ->
  * update offers -> update price history -> complete. `runStoreCollection` (shared with the
  * manual `npm run collect:*` scripts) does normalize/match/update; this wraps it with the
- * per-store lock (section 25) and a hard timeout (section 16) that the queue-only layer owns.
+ * per-store lock (section 25) and a hard timeout (section 16) that the queue-only layer owns,
+ * plus the top-level "collection.job" span/metrics for phase-7 observability.
  */
 export async function processPriceCollectionJob(job: Job<PriceCollectionJobData>, redis: Redis): Promise<ProcessorResult> {
   const { storeId } = job.data;
@@ -49,13 +62,21 @@ export async function processPriceCollectionJob(job: Job<PriceCollectionJobData>
   }
 
   try {
-    const { summary, durationMs } = await withTimeout(
-      runStoreCollection(collector, { limit: DEFAULT_PRODUCT_LIMIT }),
-      JOB_TIMEOUT_MS,
-      `${storeId} collection timed out after ${Math.round(JOB_TIMEOUT_MS / 1000)}s`,
-    );
-    console.log(formatSummary(collector.store.name, summary, durationMs, startedAt));
-    return { skipped: false, storeId, startedAt: startedAt.toISOString(), durationMs, summary };
+    return await withSpan("collection.job", { "pricenepal.store_id": storeId, "pricenepal.job_id": job.id ?? "unknown" }, async () => {
+      try {
+        const { summary, durationMs } = await withTimeout(
+          runStoreCollection(collector, { limit: DEFAULT_PRODUCT_LIMIT }),
+          JOB_TIMEOUT_MS,
+          `${storeId} collection timed out after ${Math.round(JOB_TIMEOUT_MS / 1000)}s`,
+        );
+        console.log(formatSummary(collector.store.name, summary, durationMs, startedAt));
+        recordCollectionMetrics(storeId, summary, durationMs);
+        return { skipped: false, storeId, startedAt: startedAt.toISOString(), durationMs, summary };
+      } catch (error) {
+        storeCollectionFailureTotal.add(1, { "pricenepal.store_id": storeId });
+        throw error;
+      }
+    });
   } finally {
     await releaseStoreLock(redis, storeId, token);
   }

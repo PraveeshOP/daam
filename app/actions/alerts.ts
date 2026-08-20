@@ -1,9 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { evaluateProductPriceAlerts } from "@/lib/alerts/evaluate";
+import { trackEvent } from "@/lib/analytics/track";
+import { getTrackingIdentity } from "@/lib/analytics/identity";
 
 export type AlertActionState = { error?: string; success?: string } | undefined;
 
@@ -40,6 +43,11 @@ export async function createOrUpdateAlertAction(_prevState: AlertActionState, fo
 
   revalidatePath("/alerts");
 
+  const { anonymousId } = await getTrackingIdentity();
+  after(() =>
+    trackEvent({ eventName: "price_alert_created", userId: user.id, anonymousId, productId, properties: { product_id: productId, target_price: targetPrice } }),
+  );
+
   // If the target is already at/above the current lowest price, trigger right away instead of
   // waiting for the next scheduled collection — same pipeline hook the price worker uses.
   try {
@@ -53,12 +61,20 @@ export async function createOrUpdateAlertAction(_prevState: AlertActionState, fo
 
 export async function deleteAlertAction(formData: FormData): Promise<void> {
   const alertId = String(formData.get("alertId") || "");
+  const productId = String(formData.get("productId") || "");
   if (!alertId) return;
 
   const supabase = await createServerSupabaseClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return;
 
-  await supabase.from("price_alerts").delete().eq("id", alertId).eq("user_id", userData.user.id);
+  const { error } = await supabase.from("price_alerts").delete().eq("id", alertId).eq("user_id", userData.user.id);
   revalidatePath("/alerts");
+
+  if (!error) {
+    const { anonymousId } = await getTrackingIdentity();
+    after(() =>
+      trackEvent({ eventName: "price_alert_deleted", userId: userData.user!.id, anonymousId, productId: productId || null, properties: { product_id: productId } }),
+    );
+  }
 }

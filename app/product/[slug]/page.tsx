@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { after } from "next/server";
 import { ArrowLeft, Check, Heart, Star } from "lucide-react";
 import { getProduct, stores } from "@/lib/data";
 import { OfferTable } from "@/components/OfferTable";
@@ -11,6 +12,8 @@ import { getCurrentUser } from "@/lib/supabase/server";
 import { getFavoriteProductIds } from "@/lib/favorites";
 import { getUserAlertForProduct } from "@/lib/alerts/queries";
 import { alertStatus } from "@/lib/alerts/status";
+import { trackEvent } from "@/lib/analytics/track";
+import { getTrackingIdentity } from "@/lib/analytics/identity";
 
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
 export async function generateMetadata({
@@ -63,6 +66,17 @@ export default async function ProductPage({
         status: alertStatus({ is_active: existingAlertRow.isActive, triggered_at: existingAlertRow.triggeredAt }),
       }
     : null;
+
+  const { userId, anonymousId } = await getTrackingIdentity();
+  after(() =>
+    trackEvent({
+      eventName: "product_view",
+      userId,
+      anonymousId,
+      productId: product.id,
+      properties: { product_id: product.id, category_slug: product.categorySlug },
+    }),
+  );
   return (
     <main className="container py-8 sm:py-12">
       <div className="mb-8 flex items-center gap-2 text-sm text-[#66736e]">

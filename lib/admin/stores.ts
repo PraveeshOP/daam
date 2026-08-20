@@ -11,6 +11,7 @@ export type StoreOverview = {
   productCount: number;
   activeOfferCount: number;
   health: StoreHealth;
+  healthScore: number | null;
   lastSuccessfulAt: string | null;
   lastAttemptAt: string | null;
   lastError: string | null;
@@ -26,9 +27,11 @@ export function staleThresholdMs(): number {
   return hours * 4 * 60 * 60 * 1000;
 }
 
-export function deriveHealth(jobsForStore: CollectionJobView[] | undefined): Pick<StoreOverview, "health" | "lastSuccessfulAt" | "lastAttemptAt" | "lastError" | "errorCount" | "lastDurationMs"> {
+export type DerivedHealth = Pick<StoreOverview, "health" | "healthScore" | "lastSuccessfulAt" | "lastAttemptAt" | "lastError" | "errorCount" | "lastDurationMs">;
+
+export function deriveHealth(jobsForStore: CollectionJobView[] | undefined): DerivedHealth {
   if (!jobsForStore?.length) {
-    return { health: "unknown", lastSuccessfulAt: null, lastAttemptAt: null, lastError: null, errorCount: 0, lastDurationMs: null };
+    return { health: "unknown", healthScore: null, lastSuccessfulAt: null, lastAttemptAt: null, lastError: null, errorCount: 0, lastDurationMs: null };
   }
   const mostRecent = jobsForStore[0];
   const lastCompleted = jobsForStore.find((job) => job.status === "completed");
@@ -37,8 +40,14 @@ export function deriveHealth(jobsForStore: CollectionJobView[] | undefined): Pic
   const stale = lastCompleted?.completedAt ? Date.now() - new Date(lastCompleted.completedAt).getTime() > staleThresholdMs() : true;
   const health: StoreHealth = mostRecent.status === "failed" || stale ? "failing" : "healthy";
 
+  // §20: a percentage health score — real attempts (completed or failed; "skipped" jobs never
+  // ran, so they don't count either way) over the retained history, most recent first.
+  const attempts = jobsForStore.filter((job) => job.status === "completed" || job.status === "failed");
+  const healthScore = attempts.length ? Math.round((attempts.filter((job) => job.status === "completed").length / attempts.length) * 1000) / 10 : null;
+
   return {
     health,
+    healthScore,
     lastSuccessfulAt: lastCompleted?.completedAt ?? null,
     lastAttemptAt: mostRecent.startedAt ?? mostRecent.completedAt ?? null,
     lastError: lastFailed?.failedReason ?? null,

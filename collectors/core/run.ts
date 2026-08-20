@@ -3,6 +3,7 @@ import { ensureCategory, ensureStore, importStoreProduct } from "@/collectors/co
 import type { StoreCollector } from "@/collectors/core/types";
 import type { CollectionSummary } from "@/collectors/evo/types";
 import { createServiceClient, type SupabaseServiceClient } from "@/lib/supabase/service";
+import { withSpan } from "@/lib/otel/tracing";
 
 loadEnvConfig(process.cwd());
 
@@ -36,7 +37,9 @@ export const createWriteClient = createServiceClient;
 export async function runStoreCollection(collector: StoreCollector, options: RunOptions = {}): Promise<RunResult> {
   const started = Date.now();
   const summary = emptySummary();
-  const result = await collector.collect({ limit: options.limit });
+  // These two spans are no-ops unless a tracer provider is registered (see lib/otel/worker.ts),
+  // so they're safe to leave in place for the manual `npm run collect:*` CLI scripts too.
+  const result = await withSpan("collection.collect", { "pricenepal.store_id": collector.storeId }, () => collector.collect({ limit: options.limit }));
   summary.discovered = result.discovered;
   summary.errors.push(...result.errors);
 
@@ -48,13 +51,17 @@ export async function runStoreCollection(collector: StoreCollector, options: Run
   const storeId = await ensureStore(client, collector.store);
   const categoryId = await ensureCategory(client, collector.category.name, collector.category.slug);
 
-  for (const product of result.products) {
-    try {
-      await importStoreProduct(client, product, storeId, categoryId, summary);
-    } catch (error) {
-      summary.errors.push({ url: product.productUrl, message: error instanceof Error ? error.message : "database error" });
+  await withSpan("collection.import", { "pricenepal.store_id": collector.storeId, "pricenepal.product_count": result.products.length }, async () => {
+    for (const product of result.products) {
+      try {
+        await withSpan("collection.import_product", { "pricenepal.store_id": collector.storeId, "pricenepal.product_name": product.name }, () =>
+          importStoreProduct(client, product, storeId, categoryId, summary),
+        );
+      } catch (error) {
+        summary.errors.push({ url: product.productUrl, message: error instanceof Error ? error.message : "database error" });
+      }
     }
-  }
+  });
 
   return { summary, durationMs: Date.now() - started };
 }

@@ -66,4 +66,19 @@ describe("deriveHealth", () => {
     const result = deriveHealth([job({ status: "completed", completedAt: staleDate })]);
     expect(result.health).toBe("failing");
   });
+
+  it("has no health score when there is no attempt history", () => {
+    expect(deriveHealth(undefined).healthScore).toBeNull();
+  });
+
+  it("computes a percentage score from completed vs. failed attempts, ignoring skipped jobs", () => {
+    const result = deriveHealth([
+      job({ id: "4", status: "completed" }),
+      job({ id: "3", status: "skipped" as never }), // never counted as an attempt either way
+      job({ id: "2", status: "completed" }),
+      job({ id: "1", status: "failed" }),
+    ]);
+    // 2 completed out of 3 real attempts (skipped excluded) = 66.7%
+    expect(result.healthScore).toBeCloseTo(66.7, 1);
+  });
 });

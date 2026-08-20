@@ -82,3 +82,49 @@ async function countBrokenUrls(supabase: ReturnType<typeof createServiceClient>)
   const { data } = await supabase.from("offers").select("product_url").limit(20_000);
   return (data || []).filter((row) => !row.product_url || !/^https?:\/\//i.test(row.product_url)).length;
 }
+
+/**
+ * §24: records today's count for each issue, at most once per calendar day — written when an
+ * admin actually opens /admin/data-quality, not on a schedule, so this needs no cron job and
+ * never grows faster than "days someone looked at this page".
+ */
+export async function recordDataQualitySnapshots(issues: DataQualityIssue[]): Promise<void> {
+  const supabase = createServiceClient();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const { data: existingToday } = await supabase.from("data_quality_snapshots").select("issue_key").gte("created_at", todayStart.toISOString());
+  const alreadyRecorded = new Set((existingToday || []).map((row) => row.issue_key));
+
+  const toInsert = issues.filter((issue) => !alreadyRecorded.has(issue.key)).map((issue) => ({ issue_key: issue.key, issue_count: issue.count }));
+  if (toInsert.length) await supabase.from("data_quality_snapshots").insert(toInsert);
+}
+
+export type IssueTrend = "increasing" | "decreasing" | "stable" | "new";
+
+/**
+ * Compares each issue's current count to the closest snapshot at least 7 days old. "new" means
+ * there isn't enough history yet to say anything meaningful (nothing recorded before then).
+ */
+export async function getDataQualityTrends(issues: DataQualityIssue[]): Promise<Record<string, IssueTrend>> {
+  const supabase = createServiceClient();
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const { data } = await supabase
+    .from("data_quality_snapshots")
+    .select("issue_key, issue_count, created_at")
+    .lte("created_at", weekAgo.toISOString())
+    .order("created_at", { ascending: false });
+
+  const priorByKey = new Map<string, number>();
+  for (const row of data || []) if (!priorByKey.has(row.issue_key)) priorByKey.set(row.issue_key, row.issue_count);
+
+  const trends: Record<string, IssueTrend> = {};
+  for (const issue of issues) {
+    const prior = priorByKey.get(issue.key);
+    if (prior === undefined) trends[issue.key] = "new";
+    else if (issue.count > prior) trends[issue.key] = "increasing";
+    else if (issue.count < prior) trends[issue.key] = "decreasing";
+    else trends[issue.key] = "stable";
+  }
+  return trends;
+}

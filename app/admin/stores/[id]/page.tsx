@@ -40,7 +40,13 @@ export default async function AdminStoreDetailPage({ params }: { params: Promise
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold">{store.name}</h1>
             <StatusBadge
-              label={store.health === "healthy" ? "✅ Healthy" : store.health === "failing" ? "⚠️ Failing" : "Unknown"}
+              label={
+                store.health === "healthy"
+                  ? `✅ Healthy${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
+                  : store.health === "failing"
+                    ? `⚠️ Failing${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
+                    : "Unknown"
+              }
               tone={store.health === "healthy" ? "green" : store.health === "failing" ? "red" : "gray"}
             />
           </div>

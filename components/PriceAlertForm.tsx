@@ -91,6 +91,7 @@ export function PriceAlertForm({ productId, currentLowestPrice, isAuthenticated,
       {existingAlert && existingAlert.status !== "triggered" && (
         <form action={deleteAlertAction} className="mt-3">
           <input type="hidden" name="alertId" value={existingAlert.id} />
+          <input type="hidden" name="productId" value={productId} />
           <button type="submit" className="text-xs font-bold text-[#66736e] hover:text-[#ef745f]">
             Remove alert
           </button>
