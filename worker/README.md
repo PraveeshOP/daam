@@ -14,7 +14,8 @@ the Next.js app is unaffected and keeps reading whatever is currently in Supabas
 | `lock.ts` | Redis-based mutex keyed by `storeId` so the same store never collects twice concurrently. |
 | `processor.ts` | The price-collection job handler: acquire lock → `runStoreCollection` (shared with the manual CLI scripts) → bounded timeout → release lock. |
 | `notificationProcessor.ts` | The notifications job handler: re-reads the alert/product/user email, sends the price-alert email, and only then marks the alert triggered — see `docs/accounts-and-alerts.md`. |
-| `index.ts` | Worker entrypoint: wires both queues/workers together, logs job state transitions, and shuts down gracefully on SIGINT/SIGTERM. |
+| `index.ts` | Tiny bootstrap: starts OpenTelemetry, then `import()`s `run.ts` — deliberately dynamic, not a static import, see `run.ts`'s own comment for why. |
+| `run.ts` | The actual worker: wires both queues/workers together, logs job state transitions, records BullMQ/notification metrics, and shuts down gracefully on SIGINT/SIGTERM. |
 | `trigger.ts` | `npm run queue:<store>` — enqueues one price-collection job through the real queue for manual/dev testing of the full pipeline. |
 
 The shared Redis connection factory (`lib/queue/redis.ts`) and the `notifications` queue
@@ -48,6 +49,7 @@ retries still work, but the email step fails (by design — see `docs/accounts-a
 | `COLLECTOR_REQUEST_TIMEOUT_MS` | `15000` | Per-HTTP-request timeout used by every collector. |
 | `RESEND_API_KEY` / `EMAIL_FROM` | — | Email provider for price-alert notifications (see `lib/email/client.ts`). |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Used to build the "View Product" link in alert emails and Supabase auth email redirects. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | Where to export traces/metrics. Unset: both print to the console — see `docs/analytics-and-observability.md`. |
 
 ## Shutdown
 

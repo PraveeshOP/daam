@@ -27,7 +27,13 @@ export default async function AdminStoresPage() {
                 <p className="text-xs text-[#88948e]">{store.websiteUrl}</p>
               </div>
               <StatusBadge
-                label={store.health === "healthy" ? "✅ Healthy" : store.health === "failing" ? "⚠️ Failing" : "Unknown"}
+                label={
+                  store.health === "healthy"
+                    ? `✅ Healthy${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
+                    : store.health === "failing"
+                      ? `⚠️ Failing${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
+                      : "Unknown"
+                }
                 tone={store.health === "healthy" ? "green" : store.health === "failing" ? "red" : "gray"}
               />
             </div>

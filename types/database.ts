@@ -67,12 +67,34 @@ export type Database = {
         Update: { id?: string; admin_user_id?: string; action?: string; entity_type?: string; entity_id?: string | null; metadata?: Json; created_at?: string };
         Relationships: [];
       };
+      analytics_events: {
+        Row: { id: string; event_name: string; user_id: string | null; anonymous_id: string | null; product_id: string | null; store_id: string | null; properties: Json; created_at: string };
+        Insert: { id?: string; event_name: string; user_id?: string | null; anonymous_id?: string | null; product_id?: string | null; store_id?: string | null; properties?: Json; created_at?: string };
+        Update: { id?: string; event_name?: string; user_id?: string | null; anonymous_id?: string | null; product_id?: string | null; store_id?: string | null; properties?: Json; created_at?: string };
+        Relationships: [
+          { foreignKeyName: "analytics_events_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] },
+          { foreignKeyName: "analytics_events_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
+        ];
+      };
+      data_quality_snapshots: {
+        Row: { id: string; issue_key: string; issue_count: number; created_at: string };
+        Insert: { id?: string; issue_key: string; issue_count: number; created_at?: string };
+        Update: { id?: string; issue_key?: string; issue_count?: number; created_at?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean };
       accept_product_match: { Args: { p_candidate_id: string }; Returns: void };
       reject_product_match: { Args: { p_candidate_id: string }; Returns: void };
+      analytics_top_searches: { Args: { p_since: string; p_limit?: number; p_zero_results_only?: boolean }; Returns: { query: string; search_count: number }[] };
+      analytics_top_products: { Args: { p_since: string; p_event_name: string; p_limit?: number }; Returns: { product_id: string; event_count: number }[] };
+      analytics_top_stores: { Args: { p_since: string; p_limit?: number }; Returns: { store_id: string; click_count: number }[] };
+      analytics_daily_counts: { Args: { p_since: string; p_event_name: string }; Returns: { day: string; event_count: number }[] };
+      analytics_active_users: { Args: { p_since: string }; Returns: number };
+      most_favorited_products: { Args: { p_limit?: number }; Returns: { product_id: string; favorite_count: number }[] };
+      most_alerted_products: { Args: { p_limit?: number }; Returns: { product_id: string; alert_count: number }[] };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

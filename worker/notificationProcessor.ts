@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { sendPriceAlertEmail } from "@/lib/email/priceAlert";
 import { log } from "@/lib/logger";
 import type { NotificationJobData } from "@/lib/queue/notifications";
+import { notificationSentTotal } from "@/lib/otel/metrics";
+import { trackEvent } from "@/lib/analytics/track";
 
 const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -47,10 +49,18 @@ export async function processNotificationJob(job: Job<NotificationJobData>): Pro
     currency: alert.currency,
   });
 
+  const { data: productRow } = await client.from("price_alerts").select("product_id").eq("id", alertId).maybeSingle();
   const { error: updateError } = await client.from("price_alerts").update({ is_active: false, updated_at: new Date().toISOString() }).eq("id", alertId);
   if (updateError) throw new Error(`email sent but could not mark alert ${alertId} triggered: ${updateError.message}`);
 
+  notificationSentTotal.add(1);
   log("notifications", `alert ${alertId} email sent and marked triggered`);
+  await trackEvent({
+    eventName: "price_alert_triggered",
+    userId: alert.user_id,
+    productId: productRow?.product_id ?? null,
+    properties: { target_price: Number(alert.target_price), triggered_price: triggeredPrice },
+  });
 }
 
 /**

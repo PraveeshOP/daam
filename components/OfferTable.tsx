@@ -1,5 +1,6 @@
 import { ExternalLink, Truck } from "lucide-react";
 import type { Offer, Store } from "@/types";
+import { StoreClickLink } from "@/components/StoreClickLink";
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
 export function OfferTable({
   offers,
@@ -63,14 +64,15 @@ export function OfferTable({
                     : "Out of stock"}
                 </span>
               </div>
-              <a
+              <StoreClickLink
                 href={offer.productUrl}
-                target="_blank"
-                rel="noreferrer"
+                productId={offer.productId}
+                storeId={offer.storeId}
+                offerId={offer.id}
                 className="flex items-center justify-center gap-2 rounded-[3px] border border-[#bacac2] px-4 py-2 text-sm font-bold transition hover:border-[#0c8b67] hover:text-[#0c8b67]"
               >
                 Visit store <ExternalLink size={14} />
-              </a>
+              </StoreClickLink>
             </div>
           );
         })}
