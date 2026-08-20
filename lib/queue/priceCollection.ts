@@ -12,6 +12,11 @@ export type PriceCollectionJobData = {
 
 let queue: Queue<PriceCollectionJobData> | null = null;
 
+/**
+ * Lives under lib/ (not worker/) because both the worker process and the admin dashboard
+ * (to show collection history and to enqueue a manual "Run collection") need it — same reason
+ * lib/queue/notifications.ts and lib/queue/redis.ts moved out of worker/ in phase 5.
+ */
 export function getPriceCollectionQueue(): Queue<PriceCollectionJobData> {
   if (queue) return queue;
   queue = new Queue<PriceCollectionJobData>(PRICE_COLLECTION_QUEUE, {
