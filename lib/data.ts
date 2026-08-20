@@ -47,6 +47,7 @@ type DatabaseOffer = {
   price: number | string;
   previous_price: number | string | null;
   availability: string;
+  is_disabled?: boolean;
   product_url: string;
   last_checked: string;
   stores: DatabaseStore | null;
@@ -97,7 +98,7 @@ export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
     label,
     value,
   })),
-  offers: (row.offers || []).map<Offer>((offer) => ({
+  offers: (row.offers || []).filter((offer) => !offer.is_disabled).map<Offer>((offer) => ({
     id: offer.id,
     productId: offer.product_id,
     storeId: offer.store_id,
@@ -149,6 +150,7 @@ export async function getFeaturedProducts() {
     .from("products")
     .select(productSelect)
     .eq("featured", true)
+    .eq("status", "active")
     .limit(8);
   if (error || !data?.length) {
     return products.filter((product) => product.featured).map(enrich);
@@ -215,7 +217,7 @@ export async function searchProducts(query = "", filters: SearchFilters = {}) {
       .map(enrich);
     return sortProducts(results, filters.sort);
   }
-  let request = supabase.from("products").select(productSelect);
+  let request = supabase.from("products").select(productSelect).eq("status", "active");
   const safeQuery = query.replace(/[%,()]/g, " ").trim();
   if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
   if (filters.category) request = request.eq("categories.slug", filters.category);
@@ -248,6 +250,7 @@ export async function getProduct(slug: string) {
     .from("products")
     .select(productSelect)
     .eq("slug", slug)
+    .eq("status", "active")
     .maybeSingle();
   if (error || !data) return null;
   return enrich(mapDatabaseProduct(data as unknown as DatabaseProduct));

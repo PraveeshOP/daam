@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import { processPriceCollectionJob } from "@/worker/processor";
-import { PRICE_COLLECTION_QUEUE, getPriceCollectionQueue, type PriceCollectionJobData } from "@/worker/queue";
+import { PRICE_COLLECTION_QUEUE, getPriceCollectionQueue, type PriceCollectionJobData } from "@/lib/queue/priceCollection";
 import { processNotificationJob, releaseFailedNotification } from "@/worker/notificationProcessor";
 import { NOTIFICATIONS_QUEUE, getNotificationsQueue, type NotificationJobData } from "@/lib/queue/notifications";
 import { closeRedisConnection, createRedisConnection, getSharedRedisConnection } from "@/lib/queue/redis";

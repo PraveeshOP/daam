@@ -3,6 +3,7 @@ import { findBestMatch, productSlug } from "@/collectors/core/matcher";
 import type { StoreProduct, CollectionSummary } from "@/collectors/evo/types";
 import type { Database } from "@/types/database";
 import { evaluateProductPriceAlerts } from "@/lib/alerts/evaluate";
+import { recordMatchCandidate } from "@/lib/admin/matches";
 import { logError } from "@/lib/logger";
 
 type StoreConfig = { name: string; slug: string; websiteUrl: string; logoUrl?: string; description?: string };
@@ -29,13 +30,20 @@ export async function importStoreProduct(client: Client, item: StoreProduct, sto
   const match = externalOffer ? { candidate: { id: externalOffer.product_id } as ExistingProduct, confidence: 100, reasons: ["store external id"] } : findBestMatch(item, (existingRows || []) as ExistingProduct[]);
   const highConfidence = Boolean(match.candidate && match.confidence >= 75);
   const mediumConfidence = Boolean(match.candidate && match.confidence >= 55);
-  if (mediumConfidence && !highConfidence) summary.uncertainMatches.push({ name: item.name, candidate: match.candidate!.name, confidence: match.confidence });
+  const isUncertain = mediumConfidence && !highConfidence;
+  if (isUncertain) summary.uncertainMatches.push({ name: item.name, candidate: match.candidate!.name, confidence: match.confidence });
   let productId = highConfidence ? match.candidate!.id : undefined;
   if (!productId) {
     const { data, error } = await client.from("products").insert({ name: item.name, slug: `${productSlug(item)}-${item.externalId ? item.externalId.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24) : Date.now()}`, brand: item.brand || "Unknown", category_id: categoryId, description: item.description || null, image_url: item.imageUrl || null, specifications: item.specifications || {}, featured: false }).select("id").single();
     if (error || !data) throw new Error(`product insert failed: ${error?.message || "missing product id"}`);
     productId = data.id;
     summary.createdProducts += 1;
+    // Phase-6 hook: persist the "this might actually be the same product" signal (previously
+    // only logged for the duration of one collection run) so an admin can review it in
+    // /admin/matches instead of a duplicate product silently existing forever.
+    if (isUncertain && match.candidate) {
+      await recordMatchCandidate(client, { newProductId: productId, candidateProductId: match.candidate.id, storeId, confidence: match.confidence, reasons: match.reasons });
+    }
   } else {
     const { error } = await client.from("products").update({ image_url: item.imageUrl || undefined, description: item.description || undefined, updated_at: new Date().toISOString() }).eq("id", productId);
     if (error) throw new Error(`product update failed: ${error.message}`);

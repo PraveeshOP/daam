@@ -84,6 +84,14 @@ Row Level Security on the `favorites` and `price_alerts` tables
 ([migration](supabase/migrations/20260819_add_favorites_and_price_alerts.sql)) is what actually
 enforces "a user can only see/edit their own data", not just the Server Actions' own checks.
 
+## Admin dashboard
+
+`/admin` gives administrators system health, product/store/offer management, a review queue for
+uncertain product matches, and data-quality reporting — all built on the existing pipeline, not a
+second system. See [docs/admin-dashboard.md](docs/admin-dashboard.md) for how authorization,
+match review, and collection monitoring actually work, and how to promote your own account to
+admin (there's deliberately no self-service way to do that from the app itself).
+
 ## GitHub Actions
 
 Pull requests and pushes to `main` run lint, typecheck, and a production build through [CI](.github/workflows/ci.yml). The optional [Vercel deployment](.github/workflows/deploy.yml) runs after `main` pushes when the repository variable `ENABLE_VERCEL_DEPLOY` is set to `true` and `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets are configured.
@@ -98,3 +106,4 @@ Pull requests and pushes to `main` run lint, typecheck, and a production build t
 - `/alerts` your price alerts (requires login)
 - `/account` email, favorite/alert counts, log out
 - `/login`, `/signup`, `/forgot-password`, `/reset-password` — Supabase Auth
+- `/admin` — dashboard, products, stores, offers, matches, collections, data quality, audit log (requires the `admin` role)
