@@ -106,6 +106,15 @@ Set `OTEL_EXPORTER_OTLP_ENDPOINT` to export traces/metrics to a real collector (
 Honeycomb, ...); unset, they print to the console (worker) or are simply not collected (web) —
 no infrastructure required for local dev.
 
+## Affiliate / referral
+
+Stores can optionally have an active affiliate partnership; when they do, "Visit store" clicks
+route through them instead of the plain store link, earning a commission at no cost to the
+visitor. This never affects which store is shown as the cheapest — see
+[docs/affiliate-system.md](docs/affiliate-system.md) for the destination-resolution rules, the
+`/go/[offerId]` redirect that's the sole outbound-click boundary (and why it can't become an open
+redirect), and how partnership status is managed from `/admin/stores`.
+
 ## GitHub Actions
 
 Pull requests and pushes to `main` run lint, typecheck, and a production build through [CI](.github/workflows/ci.yml). The optional [Vercel deployment](.github/workflows/deploy.yml) runs after `main` pushes when the repository variable `ENABLE_VERCEL_DEPLOY` is set to `true` and `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets are configured.
@@ -116,8 +125,19 @@ Pull requests and pushes to `main` run lint, typecheck, and a production build t
 - `/search?q=iphone` search, sorting, and filters
 - `/categories` category browse
 - `/product/apple-iphone-16-128gb` product detail, offers, history, favorite/price-alert
+- `/go/[offerId]` server-side redirect to a store (affiliate or direct) — the only outbound-click boundary
 - `/favorites` saved products (requires login)
 - `/alerts` your price alerts (requires login)
 - `/account` email, favorite/alert counts, log out
 - `/login`, `/signup`, `/forgot-password`, `/reset-password` — Supabase Auth
 - `/admin` — dashboard, analytics, products, stores, offers, matches, collections, observability, data quality, audit log (requires the `admin` role)
+- `/api/health` unauthenticated read-only health check (database + Redis reachability)
+- `/robots.txt`, `/sitemap.xml` — generated (see `app/robots.ts`/`app/sitemap.ts`)
+
+## Production hardening
+
+See [docs/production-hardening.md](docs/production-hardening.md) for the phase-9 production
+audit: what was fixed (a lock-release race and a non-atomic price write, both data-integrity
+bugs; missing rate limiting on auth; missing indexes; SEO/error pages; a health check endpoint),
+load test results, and what was deliberately deferred with a documented reason (broad caching,
+full paginated search, automated critical-alert notifications).

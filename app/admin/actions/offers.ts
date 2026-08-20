@@ -51,3 +51,25 @@ export async function setOfferAvailabilityAction(formData: FormData): Promise<{ 
   revalidatePath("/admin/data-quality");
   return {};
 }
+
+/**
+ * §6: sets (or clears) an offer's affiliate URL. Validated the same way `getStoreDestination`
+ * validates it at read time — an admin can save a malformed URL here without it silently
+ * breaking anything at click time, since /go/[offerId] always falls back to product_url.
+ */
+export async function setOfferAffiliateUrlAction(_prevState: { error?: string } | undefined, formData: FormData): Promise<{ error?: string }> {
+  const admin = await actAsAdmin();
+  if (typeof admin === "string") return { error: admin };
+
+  const id = trimmed(formData, "offerId");
+  const affiliateUrl = trimmed(formData, "affiliateUrl");
+  if (!id) return { error: "Invalid request." };
+  if (affiliateUrl && !/^https?:\/\//i.test(affiliateUrl)) return { error: "Affiliate URL must start with http:// or https://." };
+
+  const { error } = await admin.supabase.from("offers").update({ affiliate_url: affiliateUrl || null, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) return { error: "Could not save the affiliate URL." };
+
+  await logAdminAction(admin, "offer.set_affiliate_url", "offer", id, { hasUrl: Boolean(affiliateUrl) });
+  revalidatePath("/admin/offers");
+  return {};
+}

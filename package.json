@@ -13,6 +13,7 @@
     "queue:evo-store": "tsx worker/trigger.ts evo-store",
     "queue:itti": "tsx worker/trigger.ts itti",
     "redis:up": "docker compose up -d redis",
+    "analytics:prune": "tsx lib/analytics/retention.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },

@@ -26,16 +26,19 @@ export default async function AdminStoresPage() {
                 </Link>
                 <p className="text-xs text-[#88948e]">{store.websiteUrl}</p>
               </div>
-              <StatusBadge
-                label={
-                  store.health === "healthy"
-                    ? `✅ Healthy${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
-                    : store.health === "failing"
-                      ? `⚠️ Failing${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
-                      : "Unknown"
-                }
-                tone={store.health === "healthy" ? "green" : store.health === "failing" ? "red" : "gray"}
-              />
+              <div className="flex flex-col items-end gap-1.5">
+                <StatusBadge
+                  label={
+                    store.health === "healthy"
+                      ? `✅ Healthy${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
+                      : store.health === "failing"
+                        ? `⚠️ Failing${store.healthScore !== null ? ` ${store.healthScore}%` : ""}`
+                        : "Unknown"
+                  }
+                  tone={store.health === "healthy" ? "green" : store.health === "failing" ? "red" : "gray"}
+                />
+                {store.affiliateEnabled && store.partnershipStatus === "active" && <StatusBadge label="Affiliate active" tone="green" />}
+              </div>
             </div>
 
             <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">

@@ -14,6 +14,10 @@ export type Store = {
   slug: string;
   logo: string;
   delivery: string;
+  /** Optional so the local seed-data fallback (no Supabase configured) doesn't need to specify
+   * them — absent means "no affiliate program", the correct default either way. */
+  affiliateEnabled?: boolean;
+  partnershipStatus?: string;
 };
 
 export type Offer = {
@@ -25,7 +29,13 @@ export type Offer = {
   previousPrice?: number;
   availability: Availability;
   productUrl: string;
+  affiliateUrl?: string;
   lastChecked: string;
+  /** Raw ISO timestamp, kept alongside the display-formatted `lastChecked` string above (which
+   * isn't reliably parseable — the seed-data fallback uses values like "Today"/"Yesterday") so a
+   * staleness check has something real to compare against. Optional for the same reason:
+   * absent (seed-data fallback) just means "skip the staleness check", the correct default. */
+  lastCheckedAt?: string;
 };
 
 export type PricePoint = { label: string; price: number };

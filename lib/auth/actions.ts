@@ -2,6 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { withinLoginLimit, withinSignUpLimit, withinPasswordResetLimit } from "@/lib/auth/rateLimit";
+
+const TOO_MANY_ATTEMPTS = "Too many attempts. Please wait a while and try again.";
 
 export type AuthActionState = { error?: string; success?: string } | undefined;
 
@@ -17,6 +20,8 @@ function friendlyAuthError(message: string) {
 }
 
 export async function signUpAction(_prevState: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  if (!(await withinSignUpLimit())) return { error: TOO_MANY_ATTEMPTS };
+
   const email = trimmedField(formData, "email");
   const password = String(formData.get("password") || "");
   if (!email || !password) return { error: "Please enter your email and password." };
@@ -33,6 +38,8 @@ export async function signUpAction(_prevState: AuthActionState, formData: FormDa
 }
 
 export async function loginAction(_prevState: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  if (!(await withinLoginLimit())) return { error: TOO_MANY_ATTEMPTS };
+
   const email = trimmedField(formData, "email");
   const password = String(formData.get("password") || "");
   if (!email || !password) return { error: "Please enter your email and password." };
@@ -50,6 +57,8 @@ export async function logoutAction() {
 }
 
 export async function requestPasswordResetAction(_prevState: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  if (!(await withinPasswordResetLimit())) return { error: TOO_MANY_ATTEMPTS };
+
   const email = trimmedField(formData, "email");
   if (!email) return { error: "Please enter your email address." };
 

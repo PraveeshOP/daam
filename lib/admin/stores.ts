@@ -1,5 +1,9 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listCollectionJobs, groupJobsByStore, type CollectionJobView } from "@/lib/admin/collections";
+import { validateAffiliateUrl } from "@/lib/stores/destination";
+import { staleThresholdMs } from "@/lib/offers/staleness";
+
+export { staleThresholdMs };
 
 export type StoreHealth = "healthy" | "failing" | "unknown";
 
@@ -18,14 +22,14 @@ export type StoreOverview = {
   errorCount: number;
   lastDurationMs: number | null;
   recentJobs: CollectionJobView[];
+  affiliateEnabled: boolean;
+  partnershipStatus: string;
+  affiliateNetwork: string | null;
+  affiliateTrackingId: string | null;
+  /** §7/§18: how many of this store's offers have a usable/broken/absent affiliate_url, so an
+   * admin can spot "enabled but nothing to use" or "has links but disabled" at a glance. */
+  affiliateUrlCounts: { valid: number; invalid: number; none: number };
 };
-
-/** 4x the collection interval — the same "reasonable stale-data threshold" used for stale
- * offers (lib/admin/dataQuality.ts) applies to deciding a store's health here too. */
-export function staleThresholdMs(): number {
-  const hours = Number(process.env.COLLECTION_INTERVAL_HOURS || 6);
-  return hours * 4 * 60 * 60 * 1000;
-}
 
 export type DerivedHealth = Pick<StoreOverview, "health" | "healthScore" | "lastSuccessfulAt" | "lastAttemptAt" | "lastError" | "errorCount" | "lastDurationMs">;
 
@@ -64,13 +68,25 @@ export function deriveHealth(jobsForStore: CollectionJobView[] | undefined): Der
  */
 export async function listStoreOverviews(): Promise<StoreOverview[]> {
   const supabase = await createServerSupabaseClient();
-  const [{ data: stores }, jobs] = await Promise.all([
-    supabase.from("stores").select("id, name, slug, website_url").order("name"),
+  const [{ data: stores }, jobs, { data: affiliateUrls }] = await Promise.all([
+    supabase
+      .from("stores")
+      .select("id, name, slug, website_url, affiliate_enabled, partnership_status, affiliate_network, affiliate_tracking_id")
+      .order("name"),
     listCollectionJobs(),
+    // Only the two columns needed for the per-store affiliate-URL breakdown, not the whole
+    // offers table (§25/§29 — offers is expected to reach 100,000+ rows).
+    supabase.from("offers").select("store_id, affiliate_url"),
   ]);
   if (!stores) return [];
 
   const jobsByStore = groupJobsByStore(jobs);
+  const urlCountsByStore = new Map<string, { valid: number; invalid: number; none: number }>();
+  for (const row of affiliateUrls || []) {
+    const counts = urlCountsByStore.get(row.store_id) ?? { valid: 0, invalid: 0, none: 0 };
+    counts[validateAffiliateUrl(row.affiliate_url)]++;
+    urlCountsByStore.set(row.store_id, counts);
+  }
 
   const overviews = await Promise.all(
     stores.map(async (store) => {
@@ -87,6 +103,11 @@ export async function listStoreOverviews(): Promise<StoreOverview[]> {
         productCount: productCount ?? 0,
         activeOfferCount: activeOfferCount ?? 0,
         recentJobs: jobsByStore.get(store.slug) ?? [],
+        affiliateEnabled: store.affiliate_enabled,
+        partnershipStatus: store.partnership_status,
+        affiliateNetwork: store.affiliate_network,
+        affiliateTrackingId: store.affiliate_tracking_id,
+        affiliateUrlCounts: urlCountsByStore.get(store.id) ?? { valid: 0, invalid: 0, none: 0 },
         ...health,
       };
     }),

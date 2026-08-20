@@ -45,7 +45,7 @@ retries still work, but the email step fails (by design — see `docs/accounts-a
 | `WORKER_CONCURRENCY` | `2` | Max price-collection jobs (i.e. different stores) processed at once. |
 | `NOTIFICATION_WORKER_CONCURRENCY` | `5` | Max notification (email) jobs processed at once — higher than collection concurrency since sending an email is much cheaper than scraping a store. |
 | `COLLECTION_PRODUCT_LIMIT` | `20` | Products fetched per store per run (each collector still caps this at its own safe maximum). |
-| `COLLECTION_JOB_TIMEOUT_MS` | `300000` (5m) | Hard ceiling for one store's job before it's treated as failed/hung and retried. |
+| `COLLECTION_JOB_TIMEOUT_MS` | derived from `COLLECTION_PRODUCT_LIMIT`/`COLLECTOR_REQUEST_TIMEOUT_MS` (§C1, phase-9) | Hard ceiling for one store's job before it's treated as failed/hung and retried. Set explicitly to override the derived default. |
 | `COLLECTOR_REQUEST_TIMEOUT_MS` | `15000` | Per-HTTP-request timeout used by every collector. |
 | `RESEND_API_KEY` / `EMAIL_FROM` | — | Email provider for price-alert notifications (see `lib/email/client.ts`). |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Used to build the "View Product" link in alert emails and Supabase auth email redirects. |
@@ -56,3 +56,37 @@ retries still work, but the email step fails (by design — see `docs/accounts-a
 On `SIGINT`/`SIGTERM` the worker stops accepting new jobs on both queues, waits for the active
 job(s) to finish, then closes both BullMQ Workers/Queues and all Redis connections before exiting
 — safe to redeploy or restart without losing an in-flight collection or notification.
+
+A collection job's own internal timeout (`COLLECTION_JOB_TIMEOUT_MS`) is different from this: if
+a single store's collection genuinely hangs past that timeout, the job is reported as failed/
+retried, but the per-store Redis lock is deliberately *not* released at that moment — the
+underlying work is still running in the background and could still be writing to `offers`/
+`price_history`, so releasing early would let a retry start a second, concurrent collection for
+the same store. The lock is released once that abandoned work actually finishes (success or
+error); `LOCK_TTL_MS` (timeout + 60s) is the backstop if it never does. See `processor.ts`'s own
+comment for the full reasoning (§C1, phase-9 audit).
+
+## Deploying the worker
+
+This is one Node process — it needs to run continuously somewhere, not just during local `npm run
+worker:dev`. Unlike the Next.js app (deployed to Vercel via `.github/workflows/deploy.yml`), the
+worker currently has **no automated deploy path** — the scheduler, price collection, and price-
+alert emails only run wherever this process happens to be running. Until that's automated, this
+needs a deliberate choice of *one* place to run it continuously — not Kubernetes, not a fleet, a
+single always-on process is all this architecture calls for:
+
+- A small always-on VM or container service (Railway, Render, Fly.io, a $5 VPS) running
+  `npm ci && npm run worker:dev` (or a compiled `node dist/worker/index.js` if you add a build
+  step), with the same `REDIS_URL`/`NEXT_PUBLIC_SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`/
+  `RESEND_API_KEY` env vars as `.env.example`, pointed at the same Redis instance and Supabase
+  project the web app uses.
+- Whatever host runs it should restart the process automatically on crash/redeploy (systemd,
+  Docker's `restart: unless-stopped`, or the platform's own process supervisor) — the worker's own
+  graceful shutdown handling (above) makes a restart safe, it just needs something to actually
+  trigger it.
+- `GET /api/health` on the *web app* reports whether the database and Redis are reachable — poll
+  it from whatever uptime monitor you use; it's read-only and unauthenticated by design (see
+  `app/api/health/route.ts`). There is no equivalent endpoint on the worker itself since it
+  doesn't serve HTTP — its own liveness is "is the process still running," visible via the host
+  platform's own process monitoring, and its actual output (did the last collection succeed?) is
+  already visible on `/admin/collections` and `/admin/observability`.

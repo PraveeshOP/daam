@@ -5,6 +5,7 @@ import { listAdminOffers, type OfferFilter } from "@/lib/admin/offers";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmAction } from "@/components/admin/ConfirmAction";
 import { Pagination } from "@/components/admin/Pagination";
+import { AffiliateUrlEditor } from "@/components/admin/AffiliateUrlEditor";
 import { setOfferDisabledAction, setOfferAvailabilityAction } from "@/app/admin/actions/offers";
 
 export const metadata: Metadata = { title: "Offers — PriceNepal Admin" };
@@ -54,13 +55,14 @@ export default async function AdminOffersPage({ searchParams }: { searchParams: 
               <th className="px-4 py-3">Price</th>
               <th className="px-4 py-3">Availability</th>
               <th className="px-4 py-3">Last checked</th>
+              <th className="px-4 py-3">Affiliate URL</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-[#edf1ee]">
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-[#66736e]">
+                <td colSpan={7} className="px-4 py-10 text-center text-[#66736e]">
                   No offers match this filter.
                 </td>
               </tr>
@@ -82,6 +84,12 @@ export default async function AdminOffersPage({ searchParams }: { searchParams: 
                   </div>
                 </td>
                 <td className="px-4 py-3 text-[#66736e]">{new Date(offer.lastChecked).toLocaleString("en-NP", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-col gap-1">
+                    <AffiliateUrlEditor offerId={offer.id} initialValue={offer.affiliateUrl} />
+                    {offer.affiliateUrlStatus === "invalid" && <StatusBadge label="Malformed" tone="red" />}
+                  </div>
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-2">
                     <a href={offer.productUrl} target="_blank" rel="noreferrer" className="rounded-[3px] border border-[#d6dfda] p-1.5 hover:border-[#0c8b67] hover:text-[#0c8b67]" aria-label="Open store URL">
