@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { StoreProduct } from "@/collectors/evo/types";
 
 export type NormalizedAttributes = {
@@ -58,4 +59,18 @@ export function findBestMatch(sourceProduct: StoreProduct, candidates: MatchCand
 
 export function productSlug(product: StoreProduct) {
   return clean([product.brand, product.name, product.storage].filter(Boolean).join(" ")).replace(/\s+/g, "-").slice(0, 100);
+}
+
+/**
+ * §slug-collision (found while adding a second Evo category): the previous approach — truncating
+ * the sanitized externalId to its first 24 characters — silently collided whenever two distinct
+ * externalIds shared a long common prefix (e.g. two URL-derived ids both starting
+ * "macbook-air-13-inch-m5-16gb-..." before diverging past character 24), causing a real
+ * `products_slug_key` unique-constraint failure that dropped the second product entirely. A
+ * short hash of the *whole* externalId can't collide that way regardless of how long a common
+ * prefix/suffix two ids share.
+ */
+export function externalIdSlugSuffix(externalId: string | null | undefined): string {
+  if (!externalId) return String(Date.now());
+  return createHash("sha1").update(externalId).digest("hex").slice(0, 10);
 }

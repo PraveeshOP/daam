@@ -93,9 +93,12 @@ insert into categories (name, slug) values
   ('Cameras', 'cameras'), ('Gaming', 'gaming'), ('Smartwatches', 'smartwatches'), ('Home appliances', 'home-appliances')
 on conflict (slug) do nothing;
 
+-- One row per store with a real collector (collectors/registry.ts) — no placeholder/fictional
+-- stores here. Hukut/Mudita Store/Oliz Store were removed: none ever had a working collector
+-- (Oliz was specifically checked and rejected — see docs/mobilemandu-integration.md — after both
+-- its homepage and sitemap returned 403 Forbidden, a bot-protection signal never bypassed).
 insert into stores (name, slug, website_url) values
-  ('Evo Store', 'evo-store', 'https://evostore.com.np'), ('Hukut', 'hukut', 'https://hukut.com'),
-  ('Mudita Store', 'mudita-store', 'https://mudita.com.np'), ('Oliz Store', 'oliz-store', 'https://olizstore.com'),
+  ('Evo Store', 'evo-store', 'https://evostore.com.np'),
   ('ITTI', 'itti', 'https://itti.com.np')
 on conflict (slug) do nothing;
 

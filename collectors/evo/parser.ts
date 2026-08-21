@@ -64,3 +64,18 @@ export function parseProductUrls(sitemap: string, limit = 20): string[] {
     .filter((url) => !/\/(apple-iphone|iphone-air|iphone13-iphone15)$/i.test(url))
     .slice(0, limit);
 }
+
+/**
+ * Real MacBook product-page slugs consistently follow "macbook-(air|pro)-<size>-inch-m<gen>-..."
+ * (e.g. "macbook-air-13-inch-m5-16gb-512gb-8c-gpu") — a tighter, more reliable signal than a bare
+ * "macbook" keyword match, which also catches AppleCare plans, cases/sleeves, and blog posts
+ * (e.g. "speck-smartshell-macbook-pro-14-2021-cases", "blogs/macbook-price-in-nepal") that a
+ * looser filter lets through. Category-landing pages ("MacBook-Pro", "Macbook-Neo") don't match
+ * this pattern either, so they're excluded without needing their own denylist entry.
+ */
+export function parseLaptopProductUrls(sitemap: string, limit = 20): string[] {
+  return [...sitemap.matchAll(/<loc>\s*(https:\/\/evostore\.com\.np\/[^<\s]+)\s*<\/loc>/gi)]
+    .map((match) => decodeHtml(match[1]))
+    .filter((url) => /macbook-(air|pro)-\d+-inch-m\d/i.test(url))
+    .slice(0, limit);
+}

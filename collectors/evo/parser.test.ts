@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseProductPage, parseProductUrls } from "@/collectors/evo/parser";
+import { parseProductPage, parseProductUrls, parseLaptopProductUrls } from "@/collectors/evo/parser";
 
 const page = `<script type="application/ld+json">${JSON.stringify({
   "@type": "Product",
@@ -29,5 +29,20 @@ describe("Evo parser", () => {
 
   it("rejects pages without a product name", () => {
     expect(() => parseProductPage("<html></html>", "https://evostore.com.np/broken")).toThrow("missing product");
+  });
+
+  it("selects only real MacBook product pages, excluding AppleCare plans, cases, blog posts, and category-landing pages", () => {
+    const sitemap = [
+      "<loc>https://evostore.com.np/macbook-air-13-inch-m5-16gb-512gb-8c-gpu</loc>",
+      "<loc>https://evostore.com.np/macbook-pro-14-inch-m5-pro-15c-cpu-16c-gpu-24gb-1tb</loc>",
+      "<loc>https://evostore.com.np/AppleCare-Protection-Plan-for-MacBook-Air-13-M1-M2</loc>",
+      "<loc>https://evostore.com.np/speck-smartshell-macbook-pro-14-2021-cases</loc>",
+      "<loc>https://evostore.com.np/blogs/macbook-price-in-nepal</loc>",
+      "<loc>https://evostore.com.np/MacBook-Pro</loc>",
+    ].join("");
+    expect(parseLaptopProductUrls(sitemap, 10)).toEqual([
+      "https://evostore.com.np/macbook-air-13-inch-m5-16gb-512gb-8c-gpu",
+      "https://evostore.com.np/macbook-pro-14-inch-m5-pro-15c-cpu-16c-gpu-24gb-1tb",
+    ]);
   });
 });
