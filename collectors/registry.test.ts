@@ -3,7 +3,7 @@ import { COLLECTORS, STORE_IDS, getCollector } from "@/collectors/registry";
 
 describe("collector registry", () => {
   it("exposes every registered store by its stable storeId", () => {
-    expect(STORE_IDS.sort()).toEqual(["evo-store", "itti"].sort());
+    expect(STORE_IDS.sort()).toEqual(["evo-store", "itti", "mobilemandu"].sort());
     for (const storeId of STORE_IDS) {
       expect(COLLECTORS[storeId].storeId).toBe(storeId);
       expect(typeof COLLECTORS[storeId].collect).toBe("function");

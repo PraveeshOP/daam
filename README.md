@@ -24,6 +24,8 @@ Run a safe parser-only check with `npm run collect:evo -- --dry-run --limit=10`.
 
 The second-store adapter targets ITTI's public product-detail API. Run `npm run collect:itti -- --dry-run --limit=10` to parse ten overlapping smartphone pages, or `npm run collect:itti -- --limit=10` to import them. Both collectors use the shared matcher in [collectors/core/matcher.ts](collectors/core/matcher.ts): high-confidence brand/model/storage matches reuse a canonical product, while medium-confidence matches are logged and kept separate.
 
+A third adapter, [collectors/mobilemandu](collectors/mobilemandu), targets Mobilemandu's public smartphone product pages. Its `robots.txt` only disallows `/nogooglebot/` and declares a sitemap; product pages carry a standard schema.org JSON-LD `Product` block (name/sku/brand/price/availability), which the parser also uses to reject a URL that only *looks* like a phone (tablets, earbuds, and even an unrelated appliance brand sharing a name show up in the sitemap's brand-keyword matches) by checking the JSON-LD `category` field. Run `npm run collect:mobilemandu -- --dry-run --limit=10`, then `npm run collect:mobilemandu -- --limit=20` to import — same matcher, same schema, no separate pipeline.
+
 ## Automated price collection
 
 Store collection now runs on a schedule instead of by hand. A separate worker process (`worker/`)
@@ -48,6 +50,7 @@ npm run redis:up      # starts Redis via Docker Compose (or run your own: brew i
 npm run worker:dev    # starts the worker; registers one repeatable job per store
 npm run queue:evo-store   # optional: manually enqueue a one-off run for a store
 npm run queue:itti
+npm run queue:mobilemandu
 ```
 
 - **Schedule**: every store collects on the interval in `COLLECTION_INTERVAL_HOURS` (default 6h).
@@ -64,8 +67,9 @@ npm run queue:itti
 - **Price history**: unchanged from the manual collectors — a new row is only written when the
   price actually differs from the most recent recorded price, so re-running a collector with no
   price changes never creates duplicate history rows.
-- **Manual trigger without Redis**: `npm run collect:evo` / `npm run collect:itti` still run the
-  collector directly against Supabase, no queue required — useful when Redis isn't running.
+- **Manual trigger without Redis**: `npm run collect:evo` / `npm run collect:itti` /
+  `npm run collect:mobilemandu` still run the collector directly against Supabase, no queue
+  required — useful when Redis isn't running.
 
 See [worker/README.md](worker/README.md) for the full environment variable reference and shutdown
 behavior.
