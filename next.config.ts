@@ -10,8 +10,14 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "evostore.com.np" },
-      { protocol: "https", hostname: "cdn.hukut.com" },
       { protocol: "https", hostname: "admin.itti.com.np" },
+      { protocol: "https", hostname: "admin.mobilemandu.com" },
+      { protocol: "https", hostname: "www.neostore.com.np" },
+      { protocol: "https", hostname: "cdn.hukut.com" },
+      { protocol: "https", hostname: "cdn.shopify.com" },
+      { protocol: "https", hostname: "media.itechstore.com.np" },
+      { protocol: "https", hostname: "neptronics.com" },
+      { protocol: "https", hostname: "api.zolpastore.com" },
     ],
   },
 };
