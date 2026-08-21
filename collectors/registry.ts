@@ -17,6 +17,9 @@ import { neptronicsCollector } from "@/collectors/neptronics/collector";
 import { zolpastoreCollector } from "@/collectors/zolpastore/collector";
 import { smartdokoCollector } from "@/collectors/smartdoko/collector";
 import { ldsCollector } from "@/collectors/lds/collector";
+import { yantranepalCollector } from "@/collectors/yantranepal/collector";
+import { gadgethouseCollector } from "@/collectors/gadgethouse/collector";
+import { dealayoCollector } from "@/collectors/dealayo/collector";
 import type { StoreCollector } from "@/collectors/core/types";
 
 /** Every automated/manual collection entry point (worker, CLI scripts) looks stores up here.
@@ -43,6 +46,9 @@ export const COLLECTORS: Record<string, StoreCollector> = {
   [zolpastoreCollector.storeId]: zolpastoreCollector,
   [smartdokoCollector.storeId]: smartdokoCollector,
   [ldsCollector.storeId]: ldsCollector,
+  [yantranepalCollector.storeId]: yantranepalCollector,
+  [gadgethouseCollector.storeId]: gadgethouseCollector,
+  [dealayoCollector.storeId]: dealayoCollector,
 };
 
 export const STORE_IDS = Object.keys(COLLECTORS);
