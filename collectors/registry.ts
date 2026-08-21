@@ -15,6 +15,7 @@ import { brothermartCollector } from "@/collectors/brothermart/collector";
 import { itechstoreCollector } from "@/collectors/itechstore/collector";
 import { neptronicsCollector } from "@/collectors/neptronics/collector";
 import { zolpastoreCollector } from "@/collectors/zolpastore/collector";
+import { smartdokoCollector } from "@/collectors/smartdoko/collector";
 import type { StoreCollector } from "@/collectors/core/types";
 
 /** Every automated/manual collection entry point (worker, CLI scripts) looks stores up here.
@@ -39,6 +40,7 @@ export const COLLECTORS: Record<string, StoreCollector> = {
   [itechstoreCollector.storeId]: itechstoreCollector,
   [neptronicsCollector.storeId]: neptronicsCollector,
   [zolpastoreCollector.storeId]: zolpastoreCollector,
+  [smartdokoCollector.storeId]: smartdokoCollector,
 };
 
 export const STORE_IDS = Object.keys(COLLECTORS);
