@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { findBestMatch, productSlug } from "@/collectors/core/matcher";
+import { findBestMatch, productSlug, externalIdSlugSuffix } from "@/collectors/core/matcher";
 import { isSuspiciousPriceChange } from "@/collectors/core/priceIntegrity";
 import type { StoreProduct, CollectionSummary } from "@/collectors/evo/types";
 import type { Database } from "@/types/database";
@@ -39,7 +39,7 @@ export async function importStoreProduct(client: Client, item: StoreProduct, sto
   if (isUncertain) summary.uncertainMatches.push({ name: item.name, candidate: match.candidate!.name, confidence: match.confidence });
   let productId = highConfidence ? match.candidate!.id : undefined;
   if (!productId) {
-    const { data, error } = await client.from("products").insert({ name: item.name, slug: `${productSlug(item)}-${item.externalId ? item.externalId.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24) : Date.now()}`, brand: item.brand || "Unknown", category_id: categoryId, description: item.description || null, image_url: item.imageUrl || null, specifications: item.specifications || {}, featured: false }).select("id").single();
+    const { data, error } = await client.from("products").insert({ name: item.name, slug: `${productSlug(item)}-${externalIdSlugSuffix(item.externalId)}`, brand: item.brand || "Unknown", category_id: categoryId, description: item.description || null, image_url: item.imageUrl || null, specifications: item.specifications || {}, featured: false }).select("id").single();
     if (error || !data) throw new Error(`product insert failed: ${error?.message || "missing product id"}`);
     productId = data.id;
     summary.createdProducts += 1;
