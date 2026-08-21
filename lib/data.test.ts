@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapDatabaseProduct, searchProducts, supabase } from "@/lib/data";
+import { mapDatabaseProduct, searchProducts, getCategoryCounts, supabase } from "@/lib/data";
 import type { DatabaseProduct } from "@/lib/data";
 
 describe("searchProducts", () => {
@@ -25,6 +25,22 @@ describe("searchProducts", () => {
   it("sorts results by the requested price order", async () => {
     const results = await searchProducts("", { category: "smartphones", sort: "lowest" });
     expect(results[0].lowestPrice).toBeLessThanOrEqual(results[1].lowestPrice);
+  });
+});
+
+describe("getCategoryCounts", () => {
+  it("counts every category across the whole catalog, not just one filtered slice (the live bug this fixes)", async () => {
+    const counts = await getCategoryCounts();
+    // Both categories the seed data actually has products in should show a real count —
+    // this is the exact bug report: viewing one category made every other category read 0.
+    expect(counts.smartphones).toBeGreaterThan(0);
+    expect(counts.laptops).toBeGreaterThan(0);
+  });
+
+  it("narrows counts to match an active search query", async () => {
+    const counts = await getCategoryCounts("iphone");
+    expect(counts.smartphones).toBeGreaterThan(0);
+    expect(counts.laptops ?? 0).toBe(0);
   });
 });
 

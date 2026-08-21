@@ -160,6 +160,51 @@ const productListSelect =
   "*, categories!inner(name, slug), offers(*, stores(id, name, slug, logo_url, description, affiliate_enabled, partnership_status))";
 const PRICE_HISTORY_MONTHS = 6;
 
+/**
+ * §category-count (live bug report): FilterSidebar used to derive each category's count from
+ * the already-category-filtered `products` list passed into it — so viewing Laptops made every
+ * *other* category's count collapse to 0 (only laptops are in that array, and 0 of them are
+ * Smartphones), which reads as "there are no smartphones" when there are actually 97. This is a
+ * separate, lightweight query — deliberately not the full `productListSelect` — so it can count
+ * across every category at once, ignoring the category filter, while still respecting an active
+ * search-text query (a category count should still narrow when you're searching "iphone").
+ */
+export async function getCategoryCounts(query = ""): Promise<Record<string, number>> {
+  if (!supabase) {
+    const normalized = query.toLowerCase().trim();
+    const counts: Record<string, number> = {};
+    for (const product of products) {
+      if (normalized && !`${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(normalized)) continue;
+      counts[product.categorySlug] = (counts[product.categorySlug] || 0) + 1;
+    }
+    return counts;
+  }
+  let request = supabase.from("products").select("categories!inner(slug)").eq("status", "active");
+  const safeQuery = query.replace(/[%,()]/g, " ").trim();
+  if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+  const { data, error } = await request;
+  if (error || !data) return {};
+  const counts: Record<string, number> = {};
+  for (const row of data as unknown as { categories: { slug: string } | null }[]) {
+    const slug = row.categories?.slug;
+    if (slug) counts[slug] = (counts[slug] || 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * §store-filter (same live bug report): the Store filter list was the hardcoded seed-data
+ * array — it still listed three stores that no longer exist (removed as unused placeholders)
+ * and never listed Mobilemandu at all. Real stores, straight from the table that
+ * `collectors/registry.ts` actually feeds.
+ */
+export async function getStores(): Promise<Store[]> {
+  if (!supabase) return stores;
+  const { data, error } = await supabase.from("stores").select("id, name, slug, logo_url, description, affiliate_enabled, partnership_status").order("name");
+  if (error || !data?.length) return stores;
+  return (data as unknown as DatabaseStore[]).map(asStore);
+}
+
 export async function getFeaturedProducts() {
   if (!supabase) return products.filter((product) => product.featured).map(enrich);
   const { data, error } = await supabase
