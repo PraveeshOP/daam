@@ -29,7 +29,16 @@ const first = (value?: string) => value?.trim() || undefined;
 export function normalizeStoreProduct(product: StoreProduct): NormalizedAttributes {
   const source = clean([product.brand, product.model, product.name, product.storage, product.ram, product.color].filter(Boolean).join(" "));
   const brand = clean(product.brand || knownBrands.find((item) => source.includes(item)) || "unknown");
-  const storage = first(product.storage) || source.match(/\b(\d+(?:\.\d+)?)\s*(gb|tb)\b/i)?.[0];
+  // §RAM-mislabeled-as-storage (found live importing DealAyo): names conventionally read
+  // "12GB RAM 512GB Storage" — a plain `/\b\d+\s*(gb|tb)\b/` fallback (no lookahead) matches the
+  // FIRST such figure, which is the RAM one, not the storage one. Two real, distinctly-priced
+  // variants that share the same RAM but differ only in storage (e.g. Vivo V60 5G 12GB/512GB vs
+  // 12GB/256GB) then normalize to an *identical* (wrong) "storage" value, silently scoring as the
+  // same product at ≥75% confidence and overwriting one variant's offer with the other's price —
+  // a real, live data-loss bug, not a theoretical one. The negative lookahead skips any GB/TB
+  // figure immediately followed by "ram", so the fallback finds the real storage figure
+  // regardless of whether RAM or storage is written first in the name.
+  const storage = first(product.storage) || source.match(/\b(\d+(?:\.\d+)?)\s*(gb|tb)\b(?!\s*ram)/i)?.[0];
   const ram = first(product.ram) || source.match(/\b(\d+(?:\.\d+)?)\s*gb\s*ram\b/i)?.[0];
   const color = first(product.color);
   const withoutBrand = source.replace(new RegExp(`\\b${brand}\\b`, "g"), "");
