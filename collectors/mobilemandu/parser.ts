@@ -61,20 +61,30 @@ function extractRamStorage(name: string, slug: string): { ram?: string; storage?
 }
 
 const PHONE_CATEGORY = "mobile phones";
+export const LAPTOP_CATEGORY = "laptops";
 
 /**
- * The URL-level filter in parseMobilemanduProductUrls is only a rough pre-filter (brand-keyword
- * matching on the slug) — it lets through some non-phones (tablets, earbuds, and even an
- * unrelated appliance brand that happens to share a name, e.g. a "Vivo" iron). The JSON-LD
- * `category` field is the real signal, so a wrong-category page is rejected here — treated as an
- * expected skip by the collector, not a parse failure (same pattern as Evo's "missing product
- * JSON-LD" for non-product sitemap entries).
+ * The URL-level filter in parseMobilemanduProductUrls/parseMobilemanduLaptopUrls/etc. is only a
+ * rough pre-filter (brand-keyword matching on the slug) — it lets through some wrong-category
+ * pages (tablets, earbuds, laptop accessories, and even an unrelated appliance brand that happens
+ * to share a name, e.g. a "Vivo" iron). The JSON-LD `category` field is the real signal, so a
+ * wrong-category page is rejected here — treated as an expected skip by the collector, not a
+ * parse failure (same pattern as Evo's "missing product JSON-LD" for non-product sitemap
+ * entries). `expectedCategory` defaults to phones since that's every existing caller.
+ *
+ * Mobilemandu's `category` field is more granular than our own catalog categories — it's a
+ * specific product type ("Speaker", "TV", "Washing Machine"), not a broad bucket like "Audio" or
+ * "Home appliances". A plain string only works for an exact type (phones, laptops); anywhere one
+ * of our categories maps to several of their types, pass a RegExp instead (e.g. Audio needs to
+ * match "Speaker" AND "Wireless Headphone" AND "Wired Headphone").
  */
-export function parseMobilemanduProduct(html: string, productUrl: string): StoreProduct[] {
+export function parseMobilemanduProduct(html: string, productUrl: string, expectedCategory: string | RegExp = PHONE_CATEGORY): StoreProduct[] {
   const product = extractJsonLd(html)[0];
   if (!product?.name) throw new Error("missing product JSON-LD or name");
-  if ((product.category || "").trim().toLowerCase() !== PHONE_CATEGORY) {
-    throw new Error(`not a phone product (category: ${product.category || "unknown"})`);
+  const category = (product.category || "").trim();
+  const matchesCategory = typeof expectedCategory === "string" ? category.toLowerCase() === expectedCategory : expectedCategory.test(category);
+  if (!matchesCategory) {
+    throw new Error(`unexpected category (expected ${expectedCategory}, got: ${category || "unknown"})`);
   }
 
   const name = cleanName(product.name);
@@ -111,3 +121,51 @@ export function parseMobilemanduProductUrls(sitemapXml: string, limit = 20): str
     .filter((url) => PHONE_HINT.test(url) && !EXCLUDE_HINT.test(url))
     .slice(0, limit);
 }
+
+const LAPTOP_HINT = /(laptop|notebook|macbook|thinkpad|ideapad|vivobook|zenbook|pavilion|inspiron|probook|elitebook|legion|nitro|predator|swift|aspire|chromebook|zbook|omen|victus)/i;
+const LAPTOP_EXCLUDE_HINT = /(stand|bag|backpack|sleeve|skin|cover|case-|charger|power-?bank|adapter|cooling|mat\b|dock|hub|light\b|stickers?|decal|screen-guard|mouse\b|keyboard-cover|table\b|desk\b|riser|fan\b|cable|headset|controller|keyboard(?!-cover)|smart-?watch|bracelet)/i;
+
+/** Same rough-pre-filter role as parseMobilemanduProductUrls, for the Laptops category — see
+ * parseMobilemanduProduct's comment for why the JSON-LD category check is the real accuracy
+ * guarantee (this list alone still lets through, e.g., a gaming keyboard whose descriptive slug
+ * happens to mention "laptop" as a compatibility note). */
+export function parseMobilemanduLaptopUrls(sitemapXml: string, limit = 20): string[] {
+  return [...sitemapXml.matchAll(/<loc>\s*(https:\/\/mobilemandu\.com\/products\/[^<\s]+)\s*<\/loc>/gi)]
+    .map((match) => decodeHtml(match[1]))
+    .filter((url) => LAPTOP_HINT.test(url) && !LAPTOP_EXCLUDE_HINT.test(url))
+    .slice(0, limit);
+}
+
+/**
+ * Generic version of the two URL-filter functions above, for the categories added afterward
+ * (Audio, TVs, Smartwatches, Home appliances) — same rough-pre-filter role, same reliance on
+ * parseMobilemanduProduct's category check for actual accuracy. Kept as a single reusable
+ * function here rather than four more near-identical named exports.
+ */
+export function filterMobilemanduUrls(sitemapXml: string, hint: RegExp, exclude: RegExp | undefined, limit: number): string[] {
+  return [...sitemapXml.matchAll(/<loc>\s*(https:\/\/mobilemandu\.com\/products\/[^<\s]+)\s*<\/loc>/gi)]
+    .map((match) => decodeHtml(match[1]))
+    .filter((url) => hint.test(url) && !(exclude && exclude.test(url)))
+    .slice(0, limit);
+}
+
+// Verified live against real product pages: Mobilemandu's `category` field names a specific
+// product type, not a broad bucket, so each of our catalog categories below maps to a regex
+// matching every type string actually seen for it (e.g. Audio: "Speaker", "Wireless Headphone",
+// "Wired Headphone") rather than one exact string.
+export const AUDIO_CATEGORY = /speaker|headphone|earphone|earbud|soundbar/i;
+export const TV_CATEGORY = /^tv$/i;
+export const SMARTWATCH_CATEGORY = /smartwatch/i;
+export const APPLIANCE_CATEGORY = /refrigerator|washing machine|microwave|air fryer|air condition|vacuum|water purifier|geyser|water heater|induction|rice cooker|dishwasher|freezer/i;
+
+export const AUDIO_URL_HINT = /(speaker|headphone|earphone|earbud|soundbar)/i;
+export const AUDIO_URL_EXCLUDE = /(case-|cover|strap|charging-case|adapter\b|cable\b|for-laptop|for-phone|screen-guard)/i;
+
+export const TV_URL_HINT = /(-tv-|\btv\b|television|smart-led-tv|uhd-tv|qled|oled-tv)/i;
+export const TV_URL_EXCLUDE = /(tv-box|tv-stand|tv-mount|tv-stick|apple-tv|remote|antenna|tv-cable|wall-mount|bracket)/i;
+
+export const SMARTWATCH_URL_HINT = /smart-?watch/i;
+export const SMARTWATCH_URL_EXCLUDE = /(strap|\bband\b|charger|screen-guard|glass|case-|cover|dock\b)/i;
+
+export const APPLIANCE_URL_HINT = /(washing-machine|refrigerator|\bfridge\b|microwave|air-fryer|air-condition|vacuum-cleaner|water-purifier|\bgeyser\b|water-heater|induction|rice-cooker|dishwasher|\bfreezer\b)/i;
+export const APPLIANCE_URL_EXCLUDE = /(cover|bag\b|filter-only|spare-part)/i;

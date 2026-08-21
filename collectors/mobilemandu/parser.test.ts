@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { parseMobilemanduProduct, parseMobilemanduProductUrls } from "@/collectors/mobilemandu/parser";
+import {
+  parseMobilemanduProduct,
+  parseMobilemanduProductUrls,
+  parseMobilemanduLaptopUrls,
+  filterMobilemanduUrls,
+  LAPTOP_CATEGORY,
+  AUDIO_CATEGORY,
+  TV_CATEGORY,
+  SMARTWATCH_CATEGORY,
+  APPLIANCE_CATEGORY,
+  AUDIO_URL_HINT,
+  AUDIO_URL_EXCLUDE,
+  TV_URL_HINT,
+  TV_URL_EXCLUDE,
+} from "@/collectors/mobilemandu/parser";
 
 const phonePage = `<script type="application/ld+json">${JSON.stringify({
   "@type": "Product",
@@ -42,7 +56,7 @@ describe("Mobilemandu parser", () => {
   });
 
   it("rejects a non-phone product even though it parses as valid JSON-LD (category check, not just presence)", () => {
-    expect(() => parseMobilemanduProduct(tabletPage, "https://mobilemandu.com/products/redmi-pad-pro-5g-8gb-ram-256gb-storage")).toThrow("not a phone product");
+    expect(() => parseMobilemanduProduct(tabletPage, "https://mobilemandu.com/products/redmi-pad-pro-5g-8gb-ram-256gb-storage")).toThrow("unexpected category");
   });
 
   it("rejects pages without a product name", () => {
@@ -74,5 +88,96 @@ describe("Mobilemandu parser", () => {
       "<loc>https://mobilemandu.com/products/honorpadx8b</loc>",
     ].join("");
     expect(parseMobilemanduProductUrls(sitemap, 10)).toEqual([]);
+  });
+});
+
+const laptopPage = `<script type="application/ld+json">${JSON.stringify({
+  "@type": "Product",
+  name: "Acer Aspire 5 | Windows 11 Home",
+  sku: "1314",
+  brand: { name: "Acer" },
+  category: "Laptops",
+  offers: { url: "https://mobilemandu.com/products/acer-aspire-5-i7-1355u-8512-gb-156-fhd-windows-11-home-a515-58m-77xv", priceCurrency: "NPR", price: "89999.00", availability: "https://schema.org/InStock" },
+})}</script>`;
+
+describe("Mobilemandu laptop parser (a second category for a store already in the registry)", () => {
+  it("accepts a real laptop when the expected category is passed explicitly", () => {
+    const [product] = parseMobilemanduProduct(laptopPage, "https://mobilemandu.com/products/acer-aspire-5-i7-1355u-8512-gb-156-fhd-windows-11-home-a515-58m-77xv", LAPTOP_CATEGORY);
+    expect(product).toMatchObject({ externalId: "1314", name: "Acer Aspire 5", brand: "Acer", price: 89999 });
+  });
+
+  it("rejects a phone when the expected category is laptops (the category check is symmetric, not phone-only)", () => {
+    expect(() => parseMobilemanduProduct(phonePage, "https://mobilemandu.com/products/apple-iphone-16-128gb-storage", LAPTOP_CATEGORY)).toThrow("unexpected category");
+  });
+
+  it("selects laptop-looking URLs while excluding smartwatches/keyboards/cables whose slug merely mentions 'laptop'", () => {
+    const sitemap = [
+      "<loc>https://mobilemandu.com/products/acer-aspire-5-i7-1355u-8512-gb-156-fhd-windows-11-home-a515-58m-77xv</loc>",
+      "<loc>https://mobilemandu.com/products/apple-macbook-air-m2-13-inch-16256gb</loc>",
+      "<loc>https://mobilemandu.com/products/aluminum-alloy-metal-adjustable-laptop-stand</loc>",
+      "<loc>https://mobilemandu.com/products/womens-smartwatch-l68b-waterproof-bracelet</loc>",
+      "<loc>https://mobilemandu.com/products/bavin-cb392-4-in-1-240w-fast-charging-data-cable-for-laptop-support-480mbps-data-transfer-for-smartphones</loc>",
+    ].join("");
+    expect(parseMobilemanduLaptopUrls(sitemap, 10)).toEqual([
+      "https://mobilemandu.com/products/acer-aspire-5-i7-1355u-8512-gb-156-fhd-windows-11-home-a515-58m-77xv",
+      "https://mobilemandu.com/products/apple-macbook-air-m2-13-inch-16256gb",
+    ]);
+  });
+});
+
+describe("Mobilemandu category regexes (Audio/TVs/Smartwatches/Home appliances — granular type strings, not broad buckets)", () => {
+  it("AUDIO_CATEGORY matches every real audio type string seen live, not just one", () => {
+    expect(AUDIO_CATEGORY.test("Speaker")).toBe(true);
+    expect(AUDIO_CATEGORY.test("Wireless Headphone")).toBe(true);
+    expect(AUDIO_CATEGORY.test("Wired Headphone")).toBe(true);
+    expect(AUDIO_CATEGORY.test("SmartWatch")).toBe(false);
+  });
+
+  it("TV_CATEGORY matches only the exact 'TV' type, not an unrelated category that happens to contain the letters", () => {
+    expect(TV_CATEGORY.test("TV")).toBe(true);
+    expect(TV_CATEGORY.test("Activity")).toBe(false);
+  });
+
+  it("SMARTWATCH_CATEGORY matches both the plain and 'Kids' variants seen live", () => {
+    expect(SMARTWATCH_CATEGORY.test("SmartWatch")).toBe(true);
+    expect(SMARTWATCH_CATEGORY.test("Kids SmartWatch")).toBe(true);
+  });
+
+  it("APPLIANCE_CATEGORY matches the specific appliance types seen live", () => {
+    expect(APPLIANCE_CATEGORY.test("Washing Machine")).toBe(true);
+    expect(APPLIANCE_CATEGORY.test("Refrigerator")).toBe(true);
+    expect(APPLIANCE_CATEGORY.test("Vacuum Cleaner")).toBe(true);
+    expect(APPLIANCE_CATEGORY.test("Speaker")).toBe(false);
+  });
+
+  it("parseMobilemanduProduct accepts a real speaker against AUDIO_CATEGORY and rejects a smartwatch", () => {
+    const speakerPage = `<script type="application/ld+json">${JSON.stringify({
+      "@type": "Product", name: "LG 1800W X Boom Speaker", sku: "9001", brand: { name: "LG" }, category: "Speaker",
+      offers: { url: "https://mobilemandu.com/products/lg-1800-w-x-boom-speaker", priceCurrency: "NPR", price: "12999.00", availability: "https://schema.org/InStock" },
+    })}</script>`;
+    const [product] = parseMobilemanduProduct(speakerPage, "https://mobilemandu.com/products/lg-1800-w-x-boom-speaker", AUDIO_CATEGORY);
+    expect(product).toMatchObject({ externalId: "9001", brand: "LG", price: 12999 });
+    expect(() => parseMobilemanduProduct(speakerPage, "https://mobilemandu.com/products/lg-1800-w-x-boom-speaker", TV_CATEGORY)).toThrow("unexpected category");
+  });
+
+  it("filterMobilemanduUrls applies the hint/exclude pair generically (used for Audio/TVs/Smartwatches/Home appliances)", () => {
+    const sitemap = [
+      "<loc>https://mobilemandu.com/products/hifuture-tour-over-ear-anc-headphones</loc>",
+      "<loc>https://mobilemandu.com/products/x-age-earbud-carrying-case-cover</loc>",
+    ].join("");
+    expect(filterMobilemanduUrls(sitemap, AUDIO_URL_HINT, AUDIO_URL_EXCLUDE, 10)).toEqual([
+      "https://mobilemandu.com/products/hifuture-tour-over-ear-anc-headphones",
+    ]);
+  });
+
+  it("TV_URL_HINT/EXCLUDE keep real TVs while dropping TV boxes, stands, and remotes", () => {
+    const sitemap = [
+      "<loc>https://mobilemandu.com/products/tcl-65-inch-4k-uhd-tv-65v6b-voice-commands</loc>",
+      "<loc>https://mobilemandu.com/products/generic-tv-stand-table</loc>",
+      "<loc>https://mobilemandu.com/products/apple-tv-4k-streaming-device</loc>",
+    ].join("");
+    expect(filterMobilemanduUrls(sitemap, TV_URL_HINT, TV_URL_EXCLUDE, 10)).toEqual([
+      "https://mobilemandu.com/products/tcl-65-inch-4k-uhd-tv-65v6b-voice-commands",
+    ]);
   });
 });

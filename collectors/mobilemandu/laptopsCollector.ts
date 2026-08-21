@@ -2,39 +2,39 @@ import { loadEnvConfig } from "@next/env";
 import { delay, fetchText } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
-import { parseMobilemanduProduct, parseMobilemanduProductUrls } from "@/collectors/mobilemandu/parser";
+import { parseMobilemanduProduct, parseMobilemanduLaptopUrls, LAPTOP_CATEGORY } from "@/collectors/mobilemandu/parser";
 
 loadEnvConfig(process.cwd());
 
-// robots.txt (checked before writing this collector) only disallows /nogooglebot/ and declares
-// this sitemap — no CAPTCHA/bot-protection encountered fetching either the sitemap or product
-// pages with the shared collector User-Agent.
 const PRODUCTS_SITEMAP_URL = "https://mobilemandu.com/sitemaps/products.xml";
 
-export const mobilemanduCollector: StoreCollector = {
-  storeId: "mobilemandu",
+/** A second category for a store already in the registry — same site, same generic JSON-LD
+ * parser (parseMobilemanduProduct, given "laptops" as the expected category), same store.slug
+ * ("mobilemandu") so this feeds the one existing Mobilemandu row. Registered under its own
+ * storeId for its own BullMQ job/schedule/lock. */
+export const mobilemanduLaptopsCollector: StoreCollector = {
+  storeId: "mobilemandu-laptops",
   store: {
     name: "Mobilemandu",
     slug: "mobilemandu",
     websiteUrl: "https://mobilemandu.com",
     description: "Nepal online electronics retailer — mobiles, laptops, and home appliances.",
   },
-  category: { name: "Smartphones", slug: "smartphones" },
+  category: { name: "Laptops", slug: "laptops" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
     const safeLimit = Math.min(Math.max(limit, 1), 50);
     const sitemap = await fetchText(PRODUCTS_SITEMAP_URL, { headers: { Accept: "application/xml" } });
-    const urls = parseMobilemanduProductUrls(sitemap, safeLimit);
-    if (!urls.length) throw new Error("no smartphone URLs found in Mobilemandu products sitemap");
+    const urls = parseMobilemanduLaptopUrls(sitemap, safeLimit);
+    if (!urls.length) throw new Error("no laptop URLs found in Mobilemandu products sitemap");
     const products: CollectResult["products"] = [];
     const errors: CollectResult["errors"] = [];
     for (const url of urls) {
       try {
-        products.push(...parseMobilemanduProduct(await fetchText(url), url));
+        products.push(...parseMobilemanduProduct(await fetchText(url), url, LAPTOP_CATEGORY));
       } catch (error) {
         const message = error instanceof Error ? error.message : "unknown error";
-        // Non-phone products that slipped past the URL-level filter (tablets, earbuds, an
-        // unrelated appliance brand sharing a name) are expected, not failures — same treatment
-        // as Evo's "missing product JSON-LD" for non-product sitemap entries.
+        // Non-laptop pages that slipped past the URL-level filter (smartwatches, gaming
+        // accessories whose slug happens to mention "laptop") are expected, not failures.
         if (!message.startsWith("missing product JSON-LD") && !message.startsWith("unexpected category")) errors.push({ url, message });
       }
       await delay(750);
@@ -47,8 +47,8 @@ async function main() {
   const dryRun = process.argv.includes("--dry-run");
   const limitArgument = process.argv.find((argument) => argument.startsWith("--limit="));
   const startedAt = new Date();
-  const { summary, durationMs } = await runStoreCollection(mobilemanduCollector, { dryRun, limit: Number(limitArgument?.split("=")[1] || 20) });
-  console.log(formatSummary(mobilemanduCollector.store.name, summary, durationMs, startedAt));
+  const { summary, durationMs } = await runStoreCollection(mobilemanduLaptopsCollector, { dryRun, limit: Number(limitArgument?.split("=")[1] || 20) });
+  console.log(formatSummary(mobilemanduLaptopsCollector.store.name, summary, durationMs, startedAt));
   if (summary.errors.length) process.exitCode = 1;
 }
 
