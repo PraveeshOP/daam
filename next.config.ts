@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "neptronics.com" },
       { protocol: "https", hostname: "api.zolpastore.com" },
       { protocol: "https", hostname: "smartdoko.com" },
+      { protocol: "https", hostname: "lds.com.np" },
     ],
   },
 };
