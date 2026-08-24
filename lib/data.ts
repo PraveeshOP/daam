@@ -205,18 +205,32 @@ export async function getStores(): Promise<Store[]> {
   return (data as unknown as DatabaseStore[]).map(asStore);
 }
 
+/**
+ * §multi-store-only (user report): "Popular comparisons" is meant to showcase genuine price
+ * *comparisons* — a single-store product has nothing to compare, so this only shows products
+ * carried by 2+ stores. The `featured` flag alone doesn't guarantee that (it's a manually-curated
+ * admin pick, orthogonal to store count), so this fetches the curated set first, then filters by
+ * `stores >= 2` using the same `enrich()`-computed count every other multi-store view relies on
+ * (lib/favorites.ts, lib/admin/products.ts). The `.eq("featured", true)` fetch is capped well
+ * above 8 specifically because that post-filter can drop rows — an 8-row fetch could otherwise
+ * legitimately return fewer than 8 (or zero) results even when more qualifying products exist.
+ */
 export async function getFeaturedProducts() {
-  if (!supabase) return products.filter((product) => product.featured).map(enrich);
+  if (!supabase) return products.filter((product) => product.featured).map(enrich).filter((product) => product.stores >= 2);
   const { data, error } = await supabase
     .from("products")
     .select(productListSelect)
     .eq("featured", true)
     .eq("status", "active")
-    .limit(8);
+    .limit(50);
   if (error || !data?.length) {
-    return products.filter((product) => product.featured).map(enrich);
+    return products.filter((product) => product.featured).map(enrich).filter((product) => product.stores >= 2);
   }
-  return (data as unknown as DatabaseProduct[]).map(mapDatabaseProduct).map(enrich);
+  return (data as unknown as DatabaseProduct[])
+    .map(mapDatabaseProduct)
+    .map(enrich)
+    .filter((product) => product.stores >= 2)
+    .slice(0, 8);
 }
 
 export type SearchFilters = {

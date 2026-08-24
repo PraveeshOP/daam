@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapDatabaseProduct, searchProducts, getCategoryCounts, supabase } from "@/lib/data";
+import { mapDatabaseProduct, searchProducts, getCategoryCounts, getFeaturedProducts, supabase } from "@/lib/data";
 import type { DatabaseProduct } from "@/lib/data";
 
 describe("searchProducts", () => {
@@ -41,6 +41,14 @@ describe("getCategoryCounts", () => {
     const counts = await getCategoryCounts("iphone");
     expect(counts.smartphones).toBeGreaterThan(0);
     expect(counts.laptops ?? 0).toBe(0);
+  });
+});
+
+describe("getFeaturedProducts (§multi-store-only: 'Popular comparisons' should only show products with a real price comparison)", () => {
+  it("never returns a product carried by fewer than 2 stores", async () => {
+    const featured = await getFeaturedProducts();
+    expect(featured.length).toBeGreaterThan(0);
+    for (const product of featured) expect(product.stores).toBeGreaterThanOrEqual(2);
   });
 });
 
