@@ -1,4 +1,5 @@
 import type { StoreProduct } from "@/collectors/evo/types";
+import { extractLaptopRamStorage } from "@/collectors/core/specs";
 
 type YantraCategory = { id: number; name: string };
 export type YantraProduct = {
@@ -42,21 +43,6 @@ function brandFromCategories(categories?: YantraCategory[]): string | undefined 
   return match?.name.trim();
 }
 
-/**
- * Extracts RAM/storage from names like "16GB DDR5 4800MHz RAM, 512GB Gen 4 SSD" as their own
- * StoreProduct fields — the matcher's generic fallback regex only grabs the FIRST GB/TB figure in
- * a name (see the fix and regression test in collectors/core/matcher.ts/test.ts, found live on
- * DealAyo's near-identical "12GB RAM 512GB Storage" phone names), which here would be the RAM
- * figure, not storage; two laptop configs that share RAM but differ only in storage would
- * otherwise risk being silently treated as the same product. Storage is matched by drive-type
- * keyword (SSD/HDD/NVMe/eMMC) rather than a literal "storage" word, since that's how this site's
- * own names phrase it.
- */
-function extractRamStorage(name: string): { ram?: string; storage?: string } {
-  const ram = name.match(/(\d+(?:\.\d+)?\s*(?:gb|tb))(?:\s+\S+){0,2}?\s*ram\b/i)?.[1];
-  const storage = name.match(/(\d+(?:\.\d+)?\s*(?:gb|tb))(?:\s+\S+){0,2}?\s*(?:ssd|hdd|nvme|emmc)\b/i)?.[1];
-  return { ram: ram?.replace(/\s+/g, "").toUpperCase(), storage: storage?.replace(/\s+/g, "").toUpperCase() };
-}
 
 /**
  * Never trust `sku` — this codebase's established rule, holding again here: sequential-looking
@@ -76,7 +62,7 @@ function toPrice(product: YantraProduct): number | null {
 export function parseYantraProduct(product: YantraProduct): StoreProduct | null {
   const price = toPrice(product);
   if (!price) return null;
-  const { ram, storage } = extractRamStorage(product.name);
+  const { ram, storage } = extractLaptopRamStorage(product.name);
   return {
     externalId: String(product.id),
     name: decodeHtml(product.name),
