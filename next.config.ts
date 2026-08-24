@@ -23,6 +23,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "yantranepal.com" },
       { protocol: "https", hostname: "gadgethousenepal.com" },
       { protocol: "https", hostname: "dealayo.com" },
+      { protocol: "https", hostname: "electromandu.com" },
+      { protocol: "https", hostname: "techinn.com.np" },
+      { protocol: "https", hostname: "infotechsnepal.com.np" },
+      { protocol: "https", hostname: "cplanetnp.com" },
+      { protocol: "https", hostname: "mystore.com.np" },
+      { protocol: "https", hostname: "drive.brodox.com" },
     ],
   },
 };

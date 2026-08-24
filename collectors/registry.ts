@@ -20,6 +20,13 @@ import { ldsCollector } from "@/collectors/lds/collector";
 import { yantranepalCollector } from "@/collectors/yantranepal/collector";
 import { gadgethouseCollector } from "@/collectors/gadgethouse/collector";
 import { dealayoCollector } from "@/collectors/dealayo/collector";
+import { electromanduCollector } from "@/collectors/electromandu/collector";
+import { techinnCollector } from "@/collectors/techinn/collector";
+import { infotechsnepalCollector } from "@/collectors/infotechsnepal/collector";
+import { computerplanetCollector } from "@/collectors/computerplanet/collector";
+import { mystoreCollector } from "@/collectors/mystore/collector";
+import { maxellCollector } from "@/collectors/maxell/collector";
+import { nepomartCollector } from "@/collectors/nepomart/collector";
 import type { StoreCollector } from "@/collectors/core/types";
 
 /** Every automated/manual collection entry point (worker, CLI scripts) looks stores up here.
@@ -49,6 +56,13 @@ export const COLLECTORS: Record<string, StoreCollector> = {
   [yantranepalCollector.storeId]: yantranepalCollector,
   [gadgethouseCollector.storeId]: gadgethouseCollector,
   [dealayoCollector.storeId]: dealayoCollector,
+  [electromanduCollector.storeId]: electromanduCollector,
+  [techinnCollector.storeId]: techinnCollector,
+  [infotechsnepalCollector.storeId]: infotechsnepalCollector,
+  [computerplanetCollector.storeId]: computerplanetCollector,
+  [mystoreCollector.storeId]: mystoreCollector,
+  [maxellCollector.storeId]: maxellCollector,
+  [nepomartCollector.storeId]: nepomartCollector,
 };
 
 export const STORE_IDS = Object.keys(COLLECTORS);
