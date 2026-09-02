@@ -6,6 +6,7 @@ import { getProduct, stores } from "@/lib/data";
 import { OfferTable } from "@/components/OfferTable";
 import { PriceHistory } from "@/components/PriceHistory";
 import { SafeImage } from "@/components/SafeImage";
+import { ProductDescription } from "@/components/ProductDescription";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { PriceAlertForm } from "@/components/PriceAlertForm";
 import { getCurrentUser } from "@/lib/supabase/server";
@@ -131,9 +132,7 @@ export default async function ProductPage({
               {product.reviewCount} reviews
             </span>
           </div>
-          <p className="mt-6 max-w-xl leading-7 text-[#66736e]">
-            {product.description}
-          </p>
+          {product.description && <ProductDescription description={product.description} />}
           <div className="mt-7 rounded-[4px] border border-[#a9d5c5] bg-[#f0fbf7] p-5">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0c8b67]">
               Best price today

@@ -24,13 +24,16 @@ type FilterProps = {
   /** Real stores from the `stores` table (lib/data.ts's getStores) — not the static seed list,
    * which drifts out of date as real stores are added/removed. */
   stores: Store[];
+  /** Per-store product counts, same shape and same "whole catalog, not the filtered page" reasoning
+   * as categoryCounts — see lib/data.ts's getStoreCounts. */
+  storeCounts: Record<string, number>;
 };
 
 type FilterControlProps = FilterProps & {
   onChange: (key: keyof SearchViewFilters, value: string | boolean) => void;
 };
 
-function FilterControls({ filters, onChange, categoryCounts, stores }: FilterControlProps) {
+function FilterControls({ filters, onChange, categoryCounts, stores, storeCounts }: FilterControlProps) {
   return (
     <div className="space-y-7">
       <div>
@@ -52,6 +55,7 @@ function FilterControls({ filters, onChange, categoryCounts, stores }: FilterCon
             <div key={item.id} className="flex items-center gap-3 text-sm">
               <button type="button" aria-pressed={filters.store === item.slug} onClick={() => onChange("store", filters.store === item.slug ? "" : item.slug)} className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#7e8582]" aria-label={item.name}><span className={`h-2.5 w-2.5 rounded-full ${filters.store === item.slug ? "bg-[#0c8b67]" : "bg-transparent"}`} /></button>
               {item.name}
+              <span className="ml-auto text-xs text-[#a0aaa5]">{storeCounts[item.slug] ?? 0}</span>
             </div>
           ))}
         </div>
@@ -79,9 +83,9 @@ function updateUrl(key: keyof SearchViewFilters, value: string | boolean) {
   return `/search?${params.toString()}`;
 }
 
-export function FilterSidebar({ filters, categoryCounts, stores }: FilterProps) {
+export function FilterSidebar({ filters, categoryCounts, stores, storeCounts }: FilterProps) {
   const router = useRouter();
-  return <aside className="hidden rounded-[4px] border border-[#e3e9e5] bg-white p-5 lg:block"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} categoryCounts={categoryCounts} stores={stores} /></aside>;
+  return <aside className="hidden rounded-[4px] border border-[#e3e9e5] bg-white p-5 lg:block"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} categoryCounts={categoryCounts} stores={stores} storeCounts={storeCounts} /></aside>;
 }
 
 export function SearchResults({
@@ -90,6 +94,7 @@ export function SearchResults({
   filters,
   categoryCounts,
   stores,
+  storeCounts,
   favoritedProductIds = [],
   isAuthenticated = false,
 }: {
@@ -101,6 +106,7 @@ export function SearchResults({
   filters: SearchViewFilters;
   categoryCounts: Record<string, number>;
   stores: Store[];
+  storeCounts: Record<string, number>;
   favoritedProductIds?: string[];
   isAuthenticated?: boolean;
 }) {
@@ -113,7 +119,7 @@ export function SearchResults({
       <p className="hidden text-sm text-[#66736e] lg:block">{total} products found</p>
       <label className="ml-auto flex items-center gap-2 text-sm text-[#66736e]">Sort by <span className="relative"><select aria-label="Sort products" value={filters.sort} onChange={(event) => router.push(updateUrl("sort", event.target.value))} className="appearance-none rounded-[3px] border border-[#d6dfda] bg-white py-2 pl-3 pr-8 font-semibold text-[#17221f] outline-none focus:border-[#0c8b67]"><option value="relevance">Relevance</option><option value="lowest">Lowest price</option><option value="highest">Highest price</option><option value="discount">Biggest discount</option><option value="recent">Recently added</option></select><ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" /></span></label>
     </div>
-    <div id="mobile-filters" className="mb-5 hidden rounded-[4px] border border-[#d6dfda] bg-white p-5 lg:hidden"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} categoryCounts={categoryCounts} stores={stores} /></div>
+    <div id="mobile-filters" className="mb-5 hidden rounded-[4px] border border-[#d6dfda] bg-white p-5 lg:hidden"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} categoryCounts={categoryCounts} stores={stores} storeCounts={storeCounts} /></div>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{products.length ? products.map((product) => <ProductCard key={product.id} product={product} isFavorited={favoritedSet.has(product.id)} isAuthenticated={isAuthenticated} />) : <div className="col-span-full rounded-[4px] border border-dashed border-[#cbd8d1] bg-white p-12 text-center"><h2 className="text-xl font-bold">No products found</h2><p className="mt-2 text-sm text-[#66736e]">Try another search or adjust your filters.</p></div>}</div>
   </>;
 }

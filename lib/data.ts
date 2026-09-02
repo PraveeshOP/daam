@@ -206,31 +206,73 @@ export async function getStores(): Promise<Store[]> {
 }
 
 /**
- * §multi-store-only (user report): "Popular comparisons" is meant to showcase genuine price
- * *comparisons* — a single-store product has nothing to compare, so this only shows products
- * carried by 2+ stores. The `featured` flag alone doesn't guarantee that (it's a manually-curated
- * admin pick, orthogonal to store count), so this fetches the curated set first, then filters by
- * `stores >= 2` using the same `enrich()`-computed count every other multi-store view relies on
- * (lib/favorites.ts, lib/admin/products.ts). The `.eq("featured", true)` fetch is capped well
- * above 8 specifically because that post-filter can drop rows — an 8-row fetch could otherwise
- * legitimately return fewer than 8 (or zero) results even when more qualifying products exist.
+ * Same idea and shape as getCategoryCounts (same §category-count fix) — a separate, lightweight
+ * query rather than deriving each store's count from the current page's already-filtered
+ * `products`, so viewing one store's products doesn't zero out every other store's count. Counts
+ * live, non-disabled offers only, keyed by store slug (the same key the Store filter buttons use).
  */
-export async function getFeaturedProducts() {
-  if (!supabase) return products.filter((product) => product.featured).map(enrich).filter((product) => product.stores >= 2);
-  const { data, error } = await supabase
-    .from("products")
-    .select(productListSelect)
-    .eq("featured", true)
-    .eq("status", "active")
-    .limit(50);
-  if (error || !data?.length) {
-    return products.filter((product) => product.featured).map(enrich).filter((product) => product.stores >= 2);
+export async function getStoreCounts(query = ""): Promise<Record<string, number>> {
+  if (!supabase) {
+    const normalized = query.toLowerCase().trim();
+    const storeById = new Map(stores.map((store) => [store.id, store]));
+    const counts: Record<string, number> = {};
+    for (const product of products) {
+      if (normalized && !`${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(normalized)) continue;
+      for (const offer of product.offers) {
+        const store = storeById.get(offer.storeId);
+        if (store) counts[store.slug] = (counts[store.slug] || 0) + 1;
+      }
+    }
+    return counts;
   }
+  let request = supabase.from("products").select("offers(is_disabled, stores(slug))").eq("status", "active");
+  const safeQuery = query.replace(/[%,()]/g, " ").trim();
+  if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+  const { data, error } = await request;
+  if (error || !data) return {};
+  const counts: Record<string, number> = {};
+  for (const row of data as unknown as { offers: { is_disabled?: boolean; stores: { slug: string } | null }[] | null }[]) {
+    for (const offer of row.offers || []) {
+      if (offer.is_disabled) continue;
+      const slug = offer.stores?.slug;
+      if (slug) counts[slug] = (counts[slug] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/**
+ * §multi-store-only (user report): "Popular comparisons" is meant to showcase genuine price
+ * *comparisons* — a single-store product has nothing to compare. This is NOT gated on the
+ * `featured` flag (a manually-curated admin pick from early on that has no way of tracking new
+ * cross-store matches as they appear — the exact "hardcoded" behavior a later user report asked
+ * to remove) — it's a real, live query: every product with 2+ non-disabled offers, discovered
+ * fresh on every call.
+ *
+ * Two-step query rather than one: fetching the full `productListSelect` (specifications,
+ * description, price history, every offer) for all ~800 active products just to check each one's
+ * offer count would be wasteful. The cheap first query only reads `offers.product_id` to find
+ * which products actually qualify; the second query fetches full detail for just those ids.
+ */
+export async function getComparableProducts(limit = 8): Promise<ProductWithOffers[]> {
+  if (!supabase) return products.map(enrich).filter((product) => product.stores >= 2).slice(0, limit);
+
+  const { data: offerRows, error: offerError } = await supabase.from("offers").select("product_id").eq("is_disabled", false);
+  if (offerError || !offerRows?.length) return [];
+  const offerCounts = new Map<string, number>();
+  for (const row of offerRows as { product_id: string }[]) offerCounts.set(row.product_id, (offerCounts.get(row.product_id) || 0) + 1);
+  // A generous buffer over `limit`, not an exact slice — some qualifying ids may turn out
+  // inactive on the follow-up fetch, so this leaves room for that filter to still hit `limit`.
+  const qualifyingIds = [...offerCounts.entries()].filter(([, count]) => count >= 2).map(([id]) => id).slice(0, Math.max(limit * 3, 50));
+  if (!qualifyingIds.length) return [];
+
+  const { data, error } = await supabase.from("products").select(productListSelect).eq("status", "active").in("id", qualifyingIds);
+  if (error || !data?.length) return [];
   return (data as unknown as DatabaseProduct[])
     .map(mapDatabaseProduct)
     .map(enrich)
     .filter((product) => product.stores >= 2)
-    .slice(0, 8);
+    .slice(0, limit);
 }
 
 export type SearchFilters = {

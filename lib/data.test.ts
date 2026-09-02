@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapDatabaseProduct, searchProducts, getCategoryCounts, getFeaturedProducts, supabase } from "@/lib/data";
+import { mapDatabaseProduct, searchProducts, getCategoryCounts, getStoreCounts, getComparableProducts, supabase } from "@/lib/data";
 import type { DatabaseProduct } from "@/lib/data";
 
 describe("searchProducts", () => {
@@ -44,11 +44,28 @@ describe("getCategoryCounts", () => {
   });
 });
 
-describe("getFeaturedProducts (§multi-store-only: 'Popular comparisons' should only show products with a real price comparison)", () => {
+describe("getComparableProducts (§multi-store-only, then §no-hardcoding: 'Popular comparisons' is a real live query, not gated on the manually-set `featured` flag)", () => {
   it("never returns a product carried by fewer than 2 stores", async () => {
-    const featured = await getFeaturedProducts();
-    expect(featured.length).toBeGreaterThan(0);
-    for (const product of featured) expect(product.stores).toBeGreaterThanOrEqual(2);
+    const comparable = await getComparableProducts();
+    expect(comparable.length).toBeGreaterThan(0);
+    for (const product of comparable) expect(product.stores).toBeGreaterThanOrEqual(2);
+  });
+
+  it("respects a custom limit", async () => {
+    expect((await getComparableProducts(1)).length).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("getStoreCounts (same fix as getCategoryCounts, so the Store filter's counts don't zero out either)", () => {
+  it("counts every store across the whole catalog, keyed by store slug", async () => {
+    const counts = await getStoreCounts();
+    expect(counts["evo-store"]).toBeGreaterThan(0);
+  });
+
+  it("narrows counts to match an active search query", async () => {
+    const counts = await getStoreCounts("iphone");
+    expect(counts["evo-store"]).toBeGreaterThan(0);
+    expect(counts["itti"] ?? 0).toBe(0); // ITTI only carries the seed data's MacBook/TV, not the iPhone
   });
 });
 

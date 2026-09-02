@@ -6,14 +6,14 @@ import {
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
-import { categories, getFeaturedProducts } from "@/lib/data";
+import { categories, getComparableProducts } from "@/lib/data";
 import { ProductCard } from "@/components/ProductCard";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getFavoriteProductIds } from "@/lib/favorites";
 
 export default async function HomePage() {
-  const [featured, user] = await Promise.all([getFeaturedProducts(), getCurrentUser()]);
+  const [featured, user] = await Promise.all([getComparableProducts(8), getCurrentUser()]);
   const favoriteIds = user ? await getFavoriteProductIds(user.id) : new Set<string>();
   return (
     <main>
