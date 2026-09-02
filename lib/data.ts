@@ -337,14 +337,31 @@ export async function searchProducts(query = "", filters: SearchFilters = {}) {
   // §9-critical (phase-9 audit): an empty/broad query used to return the entire active catalog
   // with no cap at all — this is a stopgap ceiling, not real pagination (see the searchProducts
   // doc comment above SearchFilters for why proper paginated + faceted search is a follow-up,
-  // not a same-patch fix: FilterSidebar's facets and the in-memory store/price/stock filters
-  // below both need the full matching set to stay correct, which real pagination would have to
-  // account for deliberately rather than as a quick tweak).
+  // not a same-patch fix: FilterSidebar's facets and the in-memory price/stock filters below both
+  // need the full matching set to stay correct, which real pagination would have to account for
+  // deliberately rather than as a quick tweak).
+  //
+  // §store-filter-cap (live bug report): the store filter used to run AFTER this cap, as an
+  // in-memory `hasStore` check over whatever 200 products happened to come back with no store
+  // filter applied at all — so a store's sidebar count (a real, uncapped query — getStoreCounts
+  // above) could read "20" while the actual filtered results showed only however many of that
+  // store's products happened to survive into that arbitrary first-200 window (often far fewer,
+  // sometimes 0). Resolved the same way as the category filter just below it: find the matching
+  // product ids first (a real, unbounded query over `offers`), then apply the 200-row cap to
+  // *that* already-narrowed set — never the other way around.
   const SEARCH_RESULT_CAP = 200;
-  let request = supabase.from("products").select(productListSelect).eq("status", "active").limit(SEARCH_RESULT_CAP);
+  let request = supabase.from("products").select(productListSelect).eq("status", "active");
   const safeQuery = query.replace(/[%,()]/g, " ").trim();
   if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
   if (filters.category) request = request.eq("categories.slug", filters.category);
+  if (filters.store) {
+    const { data: offerRows, error: offerError } = await supabase.from("offers").select("product_id, stores!inner(slug)").eq("stores.slug", filters.store).eq("is_disabled", false);
+    if (offerError) return [];
+    const productIds = [...new Set((offerRows || []).map((row) => row.product_id))];
+    if (!productIds.length) return [];
+    request = request.in("id", productIds);
+  }
+  request = request.limit(SEARCH_RESULT_CAP);
   const { data, error } = await request;
   if (error || !data?.length) return [];
   const results = (data as unknown as DatabaseProduct[])
