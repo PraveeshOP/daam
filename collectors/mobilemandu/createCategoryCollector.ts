@@ -32,7 +32,7 @@ export function createMobilemanduCategoryCollector(config: MobilemanduCategoryCo
     },
     category: { name: config.categoryName, slug: config.categorySlug },
     async collect({ limit = 20 } = {}): Promise<CollectResult> {
-      const safeLimit = Math.min(Math.max(limit, 1), 50);
+      const safeLimit = Math.min(Math.max(limit, 1), 2000);
       const sitemap = await fetchText(PRODUCTS_SITEMAP_URL, { headers: { Accept: "application/xml" } });
       const urls = filterMobilemanduUrls(sitemap, config.urlHint, config.urlExclude, safeLimit);
       if (!urls.length) throw new Error(`no ${config.categoryName} URLs found in Mobilemandu products sitemap`);

@@ -21,7 +21,7 @@ export const mystoreCollector: StoreCollector = {
   },
   category: { name: "Smartphones", slug: "smartphones" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const html = await fetchText(CATEGORY_URL, { headers: { Accept: "text/html" } });
     const allProducts = parseMystoreListing(html);
     if (!allProducts.length) throw new Error("no phone products found on My Store's smart-phone category page");

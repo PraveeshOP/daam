@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseInfotechsProducts, INFOTECHS_LAPTOP_CATEGORY_ID, type InfotechsProduct } from "@/collectors/infotechsnepal/parser";
@@ -12,7 +12,7 @@ loadEnvConfig(process.cwd());
 // endpoint, while both a bare/default UA and this codebase's own honest, self-identifying
 // COLLECTOR_USER_AGENT pass reliably — so this collector deliberately does NOT override the
 // User-Agent to look like a browser, unlike collectors/smartdoko/collector.ts.
-const STORE_API_URL = `https://infotechsnepal.com.np/wp-json/wc/store/v1/products?category=${INFOTECHS_LAPTOP_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://infotechsnepal.com.np/wp-json/wc/store/v1/products?category=${INFOTECHS_LAPTOP_CATEGORY_ID}`;
 
 export const infotechsnepalCollector: StoreCollector = {
   storeId: "infotechsnepal",
@@ -24,9 +24,11 @@ export const infotechsnepalCollector: StoreCollector = {
   },
   category: { name: "Laptops", slug: "laptops" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as InfotechsProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // Infotechs Nepal's Laptops category holds 1000+ real listings (verified live via
+    // X-WP-Total: 1169) — well past WooCommerce Store API's 100-item/page ceiling, so this
+    // pages through until exhausted rather than trusting a single request.
+    const items = await fetchAllWooCommerceItems<InfotechsProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no laptop products found in Infotechs Nepal's Laptops category");
     const products = parseInfotechsProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

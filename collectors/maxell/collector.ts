@@ -20,7 +20,7 @@ export const maxellCollector: StoreCollector = {
   },
   category: { name: "Laptops", slug: "laptops" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const sitemap = await fetchText(PRODUCTS_SITEMAP_URL, { headers: { Accept: "application/xml" } });
     const urls = parseMaxellProductUrls(sitemap, safeLimit);
     if (!urls.length) throw new Error("no laptop product URLs found in Maxell Computer's products sitemap");

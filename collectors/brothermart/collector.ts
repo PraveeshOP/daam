@@ -25,7 +25,7 @@ export const brothermartCollector: StoreCollector = {
   },
   category: { name: "Smartphones", slug: "smartphones" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const response = JSON.parse(await fetchText(COLLECTION_URL, { headers: { Accept: "application/json" } })) as ShopifyProductsResponse;
     if (!response.products?.length) throw new Error("no smartphone products found in Brother Mart's mobile-phones collection");
     const products = parseBrothermartProducts(response, safeLimit);

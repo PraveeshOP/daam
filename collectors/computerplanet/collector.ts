@@ -22,7 +22,7 @@ export const computerplanetCollector: StoreCollector = {
   },
   category: { name: "Laptops", slug: "laptops" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const raw = await fetchText(API_URL, { headers: { Accept: "application/json" } });
     const response = JSON.parse(raw) as ComputerPlanetProductsResponse;
     const items = response.data?.data;

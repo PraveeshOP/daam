@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseYantraProducts, YANTRA_LAPTOP_CATEGORY_ID, type YantraProduct } from "@/collectors/yantranepal/parser";
@@ -9,7 +9,7 @@ loadEnvConfig(process.cwd());
 // robots.txt (checked before writing this collector): no bot-specific disallow, no Crawl-delay.
 // Verified live that this site's WAF does NOT block the shared COLLECTOR_USER_AGENT (unlike
 // smartdoko.com), so this needs no User-Agent override.
-const STORE_API_URL = `https://yantranepal.com/wp-json/wc/store/v1/products?category=${YANTRA_LAPTOP_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://yantranepal.com/wp-json/wc/store/v1/products?category=${YANTRA_LAPTOP_CATEGORY_ID}`;
 
 export const yantranepalCollector: StoreCollector = {
   storeId: "yantranepal",
@@ -21,9 +21,11 @@ export const yantranepalCollector: StoreCollector = {
   },
   category: { name: "Laptops", slug: "laptops" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as YantraProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // Yantra Nepal's Laptops category holds 770 real listings (verified live via X-WP-Total) —
+    // well past WooCommerce Store API's 100-item/page ceiling, so this pages through until
+    // exhausted rather than trusting a single request.
+    const items = await fetchAllWooCommerceItems<YantraProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no laptop products found in Yantra Nepal's Laptops category");
     const products = parseYantraProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseMeroepasalProducts, MEROEPASAL_APPLIANCE_CATEGORY_IDS, type MeroepasalProduct } from "@/collectors/meroepasal/parser";
@@ -9,6 +9,14 @@ loadEnvConfig(process.cwd());
 // robots.txt (checked before writing this collector): no bot-specific disallow, no Crawl-delay.
 // Verified live no WAF block of any tested User-Agent.
 const STORE_API_BASE = "https://meroepasal.com/wp-json/wc/store/v1/products";
+
+// One of these four categories (94) gets measurably slower per item added to the page — 10/page
+// is usually ~1.5s but has been observed to spike well past our normal 15s request timeout even
+// at that size (verified live, with real variance run to run) — so this paginates in smaller
+// pages across all four categories AND gives itself a longer timeout as headroom against that
+// server-side flakiness, rather than trusting either page size or timeout alone.
+const PAGE_SIZE = 10;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export const meroepasalCollector: StoreCollector = {
   storeId: "meroepasal",
@@ -20,13 +28,11 @@ export const meroepasalCollector: StoreCollector = {
   },
   category: { name: "Home appliances", slug: "home-appliances" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const perCategoryLimit = Math.ceil(safeLimit / MEROEPASAL_APPLIANCE_CATEGORY_IDS.length);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     let discovered = 0;
     const items: MeroepasalProduct[] = [];
     for (const categoryId of MEROEPASAL_APPLIANCE_CATEGORY_IDS) {
-      const raw = await fetchText(`${STORE_API_BASE}?category=${categoryId}&per_page=${Math.min(perCategoryLimit + 5, 100)}`, { headers: { Accept: "application/json" } });
-      const categoryItems = JSON.parse(raw) as MeroepasalProduct[];
+      const categoryItems = await fetchAllWooCommerceItems<MeroepasalProduct>(`${STORE_API_BASE}?category=${categoryId}`, { perPage: PAGE_SIZE, maxItems: safeLimit, timeoutMs: REQUEST_TIMEOUT_MS });
       discovered += categoryItems.length;
       items.push(...categoryItems);
     }

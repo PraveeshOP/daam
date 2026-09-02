@@ -32,7 +32,7 @@ export const smartdokoCollector: StoreCollector = {
   },
   category: { name: "TVs", slug: "televisions" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const products: CollectResult["products"] = [];
     let discovered = 0;
     let page = 1;

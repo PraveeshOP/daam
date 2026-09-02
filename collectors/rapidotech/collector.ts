@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseRapidotechProducts, RAPIDOTECH_SPEAKER_CATEGORY_ID, type RapidotechProduct } from "@/collectors/rapidotech/parser";
@@ -10,7 +10,7 @@ loadEnvConfig(process.cwd());
 // (among GPTBot/Google-Extended/Applebot-Extended) — only CCBot/Amazonbot/Bytespider are
 // disallowed, the friendliest bot policy of any store this session. No Crawl-delay. Verified live
 // no WAF block of any tested User-Agent either.
-const STORE_API_URL = `https://rapidotechnepal.com/wp-json/wc/store/v1/products?category=${RAPIDOTECH_SPEAKER_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://rapidotechnepal.com/wp-json/wc/store/v1/products?category=${RAPIDOTECH_SPEAKER_CATEGORY_ID}`;
 
 export const rapidotechCollector: StoreCollector = {
   storeId: "rapidotech",
@@ -22,9 +22,10 @@ export const rapidotechCollector: StoreCollector = {
   },
   category: { name: "Audio", slug: "audio" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as RapidotechProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // 32 real listings today (verified live) — comfortably under one page, but paginating
+    // unconditionally means this keeps fetching everything if the category ever grows past 100.
+    const items = await fetchAllWooCommerceItems<RapidotechProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no speaker products found in Rapido Tech Nepal's Speakers category");
     const products = parseRapidotechProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

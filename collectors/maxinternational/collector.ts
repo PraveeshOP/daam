@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseMaxProducts, MAX_LAPTOP_CATEGORY_ID, type MaxProduct } from "@/collectors/maxinternational/parser";
@@ -8,7 +8,7 @@ loadEnvConfig(process.cwd());
 
 // robots.txt (checked before writing this collector): no bot-specific disallow, no Crawl-delay.
 // Verified live no WAF block of any tested User-Agent.
-const STORE_API_URL = `https://maxnepal.com.np/wp-json/wc/store/v1/products?category=${MAX_LAPTOP_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://maxnepal.com.np/wp-json/wc/store/v1/products?category=${MAX_LAPTOP_CATEGORY_ID}`;
 
 export const maxinternationalCollector: StoreCollector = {
   storeId: "maxinternational",
@@ -20,9 +20,11 @@ export const maxinternationalCollector: StoreCollector = {
   },
   category: { name: "Laptops", slug: "laptops" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as MaxProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // Max International's Laptops category holds 381 real listings (verified live via
+    // X-WP-Total) — past WooCommerce Store API's 100-item/page ceiling, so this pages through
+    // until exhausted rather than trusting a single request.
+    const items = await fetchAllWooCommerceItems<MaxProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no laptop products found in Max International's Laptops category");
     const products = parseMaxProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

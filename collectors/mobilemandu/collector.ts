@@ -21,7 +21,7 @@ export const mobilemanduCollector: StoreCollector = {
   },
   category: { name: "Smartphones", slug: "smartphones" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const sitemap = await fetchText(PRODUCTS_SITEMAP_URL, { headers: { Accept: "application/xml" } });
     const urls = parseMobilemanduProductUrls(sitemap, safeLimit);
     if (!urls.length) throw new Error("no smartphone URLs found in Mobilemandu products sitemap");

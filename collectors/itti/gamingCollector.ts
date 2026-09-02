@@ -23,7 +23,7 @@ export const ittiGamingCollector: StoreCollector = {
   store: { name: "ITTI", slug: "itti", websiteUrl: "https://itti.com.np", logoUrl: "https://itti.com.np/logo.webp", description: "ITTI Computer World electronics retailer in Nepal." },
   category: { name: "Gaming", slug: "gaming" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const urls = parseIttiGamingUrls(await fetchText(SITEMAP_URL, { headers: { Accept: "application/xml" } }), safeLimit);
     if (!urls.length) throw new Error("no gaming console product URLs found in ITTI sitemap");
     const products: CollectResult["products"] = [];

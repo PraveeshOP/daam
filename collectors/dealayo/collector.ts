@@ -32,7 +32,7 @@ export const dealayoCollector: StoreCollector = {
   },
   category: { name: "Smartphones", slug: "smartphones" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const raw = await fetchText(GRAPHQL_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },

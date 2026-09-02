@@ -26,7 +26,7 @@ export const itechstoreCollector: StoreCollector = {
   },
   category: { name: "Smartphones", slug: "smartphones" },
   async collect({ limit = 15 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 30);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const category = JSON.parse(await fetchText(`${API_BASE}/category/${CATEGORY_SLUG}/`, { headers: { Accept: "application/json" } })) as ItechstoreCategory;
     const slugs = extractCategorySlugs(category, safeLimit);
     if (!slugs.length) throw new Error("no phone product slugs found in iTechStore's phones-tablets-e-reader category");

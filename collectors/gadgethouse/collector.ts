@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseGadgetHouseProducts, GADGETHOUSE_SMARTWATCH_CATEGORY_ID, type GadgetHouseProduct } from "@/collectors/gadgethouse/parser";
@@ -9,7 +9,7 @@ loadEnvConfig(process.cwd());
 // robots.txt (checked before writing this collector): no bot-specific disallow, no Crawl-delay.
 // Verified live that this site's WAF does NOT block the shared COLLECTOR_USER_AGENT (unlike
 // smartdoko.com), so this needs no User-Agent override.
-const STORE_API_URL = `https://gadgethousenepal.com/wp-json/wc/store/v1/products?category=${GADGETHOUSE_SMARTWATCH_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://gadgethousenepal.com/wp-json/wc/store/v1/products?category=${GADGETHOUSE_SMARTWATCH_CATEGORY_ID}`;
 
 export const gadgethouseCollector: StoreCollector = {
   storeId: "gadgethouse",
@@ -21,9 +21,10 @@ export const gadgethouseCollector: StoreCollector = {
   },
   category: { name: "Smartwatches", slug: "smartwatches" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as GadgetHouseProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // 73 real listings today (verified live) — comfortably under one page, but paginating
+    // unconditionally means this keeps fetching everything if the category ever grows past 100.
+    const items = await fetchAllWooCommerceItems<GadgetHouseProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no smartwatch products found in Gadget House Nepal's Smartwatch category");
     const products = parseGadgetHouseProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

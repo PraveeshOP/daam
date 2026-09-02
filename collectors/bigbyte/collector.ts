@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseBigbyteProducts, BIGBYTE_CAMERA_CATEGORY_ID, type BigbyteProduct } from "@/collectors/bigbyte/parser";
@@ -8,7 +8,7 @@ loadEnvConfig(process.cwd());
 
 // robots.txt (checked before writing this collector): no bot-specific disallow, no Crawl-delay.
 // Verified live no WAF block of any tested User-Agent.
-const STORE_API_URL = `https://bigbyte.com.np/wp-json/wc/store/v1/products?category=${BIGBYTE_CAMERA_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://bigbyte.com.np/wp-json/wc/store/v1/products?category=${BIGBYTE_CAMERA_CATEGORY_ID}`;
 
 export const bigbyteCollector: StoreCollector = {
   storeId: "bigbyte",
@@ -20,9 +20,10 @@ export const bigbyteCollector: StoreCollector = {
   },
   category: { name: "Cameras", slug: "cameras" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as BigbyteProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // 86 real listings today (verified live) — comfortably under one page, but paginating
+    // unconditionally means this keeps fetching everything if the category ever grows past 100.
+    const items = await fetchAllWooCommerceItems<BigbyteProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no camera products found in Bigbyte's IP Cameras category");
     const products = parseBigbyteProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

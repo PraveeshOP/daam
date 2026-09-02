@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseSewasmartProducts, SEWASMART_AC_CATEGORY_ID, type SewasmartProduct } from "@/collectors/sewasmart/parser";
@@ -8,7 +8,7 @@ loadEnvConfig(process.cwd());
 
 // robots.txt (checked before writing this collector): no bot-specific disallow, no Crawl-delay.
 // Verified live no WAF block of any tested User-Agent.
-const STORE_API_URL = `https://sewasmart.com/wp-json/wc/store/v1/products?category=${SEWASMART_AC_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://sewasmart.com/wp-json/wc/store/v1/products?category=${SEWASMART_AC_CATEGORY_ID}`;
 
 export const sewasmartCollector: StoreCollector = {
   storeId: "sewasmart",
@@ -20,9 +20,10 @@ export const sewasmartCollector: StoreCollector = {
   },
   category: { name: "Home appliances", slug: "home-appliances" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as SewasmartProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // 61 real listings today (verified live) — comfortably under one page, but paginating
+    // unconditionally means this keeps fetching everything if the category ever grows past 100.
+    const items = await fetchAllWooCommerceItems<SewasmartProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no AC products found in SewasMart's Air Conditioner category");
     const products = parseSewasmartProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

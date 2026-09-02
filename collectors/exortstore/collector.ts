@@ -19,7 +19,7 @@ export const exortstoreCollector: StoreCollector = {
   },
   category: { name: "Smartwatches", slug: "smartwatches" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const categoryHtml = await fetchText(EXORTSTORE_SMARTWATCH_CATEGORY_URL, { headers: { Accept: "text/html" } });
     const urls = parseExortstoreProductUrls(categoryHtml, safeLimit);
     if (!urls.length) throw new Error("no smartwatch product URLs found on Exort Store's Smart Watch category page");

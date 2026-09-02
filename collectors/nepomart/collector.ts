@@ -21,7 +21,7 @@ export const nepomartCollector: StoreCollector = {
   },
   category: { name: "Smartwatches", slug: "smartwatches" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const sitemap = await fetchText(SITEMAP_URL, { headers: { Accept: "application/xml" } });
     const urls = parseNepomartProductUrls(sitemap, safeLimit);
     if (!urls.length) throw new Error("no smartwatch/earbuds product URLs found in Nepomart's sitemap");

@@ -13,7 +13,7 @@ export const evoCollector: StoreCollector = {
   store: { name: "Evo Store", slug: "evo-store", websiteUrl: "https://evostore.com.np", logoUrl: "https://evostore.com.np/catalog/view/theme/evostore/assets/img/logo/evo-logo-black.svg", description: "Apple Authorized Reseller and Nepal electronics retailer." },
   category: { name: "Smartphones", slug: "smartphones" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const sitemap = await fetchText(SITEMAP_URL, { headers: { Accept: "application/xml" } });
     const urls = parseProductUrls(sitemap, safeLimit);
     if (!urls.length) throw new Error("no smartphone URLs found in Evo sitemap");

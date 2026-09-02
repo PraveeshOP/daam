@@ -1,5 +1,5 @@
 import { loadEnvConfig } from "@next/env";
-import { fetchText } from "@/collectors/core/http";
+import { fetchAllWooCommerceItems } from "@/collectors/core/http";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
 import type { CollectResult, StoreCollector } from "@/collectors/core/types";
 import { parseNeptronicsProducts, type NeptronicsProduct } from "@/collectors/neptronics/parser";
@@ -13,7 +13,7 @@ loadEnvConfig(process.cwd());
 // public, unauthenticated WooCommerce Store API — much better than crawling 117 product pages
 // one by one for a store this size.
 const AUDIO_CATEGORY_ID = 52;
-const STORE_API_URL = `https://neptronics.com/wp-json/wc/store/v1/products?category=${AUDIO_CATEGORY_ID}&per_page=100`;
+const STORE_API_URL = `https://neptronics.com/wp-json/wc/store/v1/products?category=${AUDIO_CATEGORY_ID}`;
 
 export const neptronicsCollector: StoreCollector = {
   storeId: "neptronics",
@@ -25,9 +25,10 @@ export const neptronicsCollector: StoreCollector = {
   },
   category: { name: "Audio", slug: "audio" },
   async collect({ limit = 20 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const raw = await fetchText(STORE_API_URL, { headers: { Accept: "application/json" } });
-    const items = JSON.parse(raw) as NeptronicsProduct[];
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
+    // 34 real listings today (verified live) — comfortably under one page, but paginating
+    // unconditionally means this keeps fetching everything if the category ever grows past 100.
+    const items = await fetchAllWooCommerceItems<NeptronicsProduct>(STORE_API_URL, { maxItems: safeLimit });
     if (!items.length) throw new Error("no audio products found in Neptronics' Speakers & Headphones category");
     const products = parseNeptronicsProducts(items, safeLimit);
     return { products, discovered: items.length, errors: [] };

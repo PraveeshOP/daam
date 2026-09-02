@@ -31,7 +31,7 @@ export const neostoreCollector: StoreCollector = {
   },
   category: { name: "Cameras", slug: "cameras" },
   async collect({ limit = 15 } = {}): Promise<CollectResult> {
-    const safeLimit = Math.min(Math.max(limit, 1), 30);
+    const safeLimit = Math.min(Math.max(limit, 1), 2000);
     const productUrls: string[] = [];
     for (const categoryUrl of CATEGORY_PAGES) {
       const html = await fetchText(categoryUrl, { headers: { Accept: "text/html" } });
