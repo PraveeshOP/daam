@@ -27,6 +27,14 @@ import { computerplanetCollector } from "@/collectors/computerplanet/collector";
 import { mystoreCollector } from "@/collectors/mystore/collector";
 import { maxellCollector } from "@/collectors/maxell/collector";
 import { nepomartCollector } from "@/collectors/nepomart/collector";
+import { onlineitCollector } from "@/collectors/onlineit/collector";
+import { maxinternationalCollector } from "@/collectors/maxinternational/collector";
+import { tronixspaceCollector } from "@/collectors/tronixspace/collector";
+import { meroepasalCollector } from "@/collectors/meroepasal/collector";
+import { bigbyteCollector } from "@/collectors/bigbyte/collector";
+import { sewasmartCollector } from "@/collectors/sewasmart/collector";
+import { rapidotechCollector } from "@/collectors/rapidotech/collector";
+import { exortstoreCollector } from "@/collectors/exortstore/collector";
 import type { StoreCollector } from "@/collectors/core/types";
 
 /** Every automated/manual collection entry point (worker, CLI scripts) looks stores up here.
@@ -63,6 +71,14 @@ export const COLLECTORS: Record<string, StoreCollector> = {
   [mystoreCollector.storeId]: mystoreCollector,
   [maxellCollector.storeId]: maxellCollector,
   [nepomartCollector.storeId]: nepomartCollector,
+  [onlineitCollector.storeId]: onlineitCollector,
+  [maxinternationalCollector.storeId]: maxinternationalCollector,
+  [tronixspaceCollector.storeId]: tronixspaceCollector,
+  [meroepasalCollector.storeId]: meroepasalCollector,
+  [bigbyteCollector.storeId]: bigbyteCollector,
+  [sewasmartCollector.storeId]: sewasmartCollector,
+  [rapidotechCollector.storeId]: rapidotechCollector,
+  [exortstoreCollector.storeId]: exortstoreCollector,
 };
 
 export const STORE_IDS = Object.keys(COLLECTORS);
