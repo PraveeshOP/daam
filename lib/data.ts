@@ -161,6 +161,28 @@ const productListSelect =
 const PRICE_HISTORY_MONTHS = 6;
 
 /**
+ * §1000-row-cap (live bug report, phase-10 audit): PostgREST silently caps any query with no
+ * explicit .range()/.limit() at 1000 rows — this was never wrong while `products`/`offers` stayed
+ * under that, but a full-catalog import crossing 1000 offers turned every plain, unranged
+ * aggregate query below into a silent undercount (e.g. "Popular comparisons" reading 3 qualifying
+ * products instead of the real 11, because the 2+-offer count was only ever computed over
+ * whichever arbitrary first 1000 offer rows PostgREST happened to return). `buildPage` must
+ * construct a *fresh* query per call (re-applying every filter) since an already-awaited
+ * supabase-js query builder can't be re-executed with a different .range().
+ */
+async function fetchAllRows<T>(buildPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const rows: T[] = [];
+  const PAGE_SIZE = 1000;
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await buildPage(from, from + PAGE_SIZE - 1);
+    if (error || !data || !data.length) break;
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+/**
  * §category-count (live bug report): FilterSidebar used to derive each category's count from
  * the already-category-filtered `products` list passed into it — so viewing Laptops made every
  * *other* category's count collapse to 0 (only laptops are in that array, and 0 of them are
@@ -179,13 +201,15 @@ export async function getCategoryCounts(query = ""): Promise<Record<string, numb
     }
     return counts;
   }
-  let request = supabase.from("products").select("categories!inner(slug)").eq("status", "active");
   const safeQuery = query.replace(/[%,()]/g, " ").trim();
-  if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
-  const { data, error } = await request;
-  if (error || !data) return {};
+  const buildBase = () => {
+    let request = supabase!.from("products").select("categories!inner(slug)").eq("status", "active");
+    if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+    return request;
+  };
+  const data = await fetchAllRows<{ categories: { slug: string } | null }>((from, to) => buildBase().range(from, to));
   const counts: Record<string, number> = {};
-  for (const row of data as unknown as { categories: { slug: string } | null }[]) {
+  for (const row of data) {
     const slug = row.categories?.slug;
     if (slug) counts[slug] = (counts[slug] || 0) + 1;
   }
@@ -225,13 +249,15 @@ export async function getStoreCounts(query = ""): Promise<Record<string, number>
     }
     return counts;
   }
-  let request = supabase.from("products").select("offers(is_disabled, stores(slug))").eq("status", "active");
   const safeQuery = query.replace(/[%,()]/g, " ").trim();
-  if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
-  const { data, error } = await request;
-  if (error || !data) return {};
+  const buildBase = () => {
+    let request = supabase!.from("products").select("offers(is_disabled, stores(slug))").eq("status", "active");
+    if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+    return request;
+  };
+  const data = await fetchAllRows<{ offers: { is_disabled?: boolean; stores: { slug: string } | null }[] | null }>((from, to) => buildBase().range(from, to));
   const counts: Record<string, number> = {};
-  for (const row of data as unknown as { offers: { is_disabled?: boolean; stores: { slug: string } | null }[] | null }[]) {
+  for (const row of data) {
     for (const offer of row.offers || []) {
       if (offer.is_disabled) continue;
       const slug = offer.stores?.slug;
@@ -257,10 +283,10 @@ export async function getStoreCounts(query = ""): Promise<Record<string, number>
 export async function getComparableProducts(limit = 8): Promise<ProductWithOffers[]> {
   if (!supabase) return products.map(enrich).filter((product) => product.stores >= 2).slice(0, limit);
 
-  const { data: offerRows, error: offerError } = await supabase.from("offers").select("product_id").eq("is_disabled", false);
-  if (offerError || !offerRows?.length) return [];
+  const offerRows = await fetchAllRows<{ product_id: string }>((from, to) => supabase!.from("offers").select("product_id").eq("is_disabled", false).range(from, to));
+  if (!offerRows.length) return [];
   const offerCounts = new Map<string, number>();
-  for (const row of offerRows as { product_id: string }[]) offerCounts.set(row.product_id, (offerCounts.get(row.product_id) || 0) + 1);
+  for (const row of offerRows) offerCounts.set(row.product_id, (offerCounts.get(row.product_id) || 0) + 1);
   // A generous buffer over `limit`, not an exact slice — some qualifying ids may turn out
   // inactive on the follow-up fetch, so this leaves room for that filter to still hit `limit`.
   const qualifyingIds = [...offerCounts.entries()].filter(([, count]) => count >= 2).map(([id]) => id).slice(0, Math.max(limit * 3, 50));
@@ -355,9 +381,10 @@ export async function searchProducts(query = "", filters: SearchFilters = {}) {
   if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
   if (filters.category) request = request.eq("categories.slug", filters.category);
   if (filters.store) {
-    const { data: offerRows, error: offerError } = await supabase.from("offers").select("product_id, stores!inner(slug)").eq("stores.slug", filters.store).eq("is_disabled", false);
-    if (offerError) return [];
-    const productIds = [...new Set((offerRows || []).map((row) => row.product_id))];
+    const offerRows = await fetchAllRows<{ product_id: string }>((from, to) =>
+      supabase!.from("offers").select("product_id, stores!inner(slug)").eq("stores.slug", filters.store!).eq("is_disabled", false).range(from, to),
+    );
+    const productIds = [...new Set(offerRows.map((row) => row.product_id))];
     if (!productIds.length) return [];
     request = request.in("id", productIds);
   }
