@@ -26,9 +26,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
   const page = Math.max(1, Number(first(params.page)) || 1);
   const [allProducts, categoryCounts, liveStores, storeCounts, user] = await Promise.all([
     searchProducts(query, { category: category || undefined, store: store || undefined, minPrice: numberParam(minPrice), maxPrice: numberParam(maxPrice), inStock, sort: selectedSort }),
-    getCategoryCounts(query),
+    getCategoryCounts(query, store || undefined),
     getStores(),
-    getStoreCounts(query),
+    getStoreCounts(query, category || undefined),
     getCurrentUser(),
   ]);
   const favoriteIds = user ? await getFavoriteProductIds(user.id) : new Set<string>();

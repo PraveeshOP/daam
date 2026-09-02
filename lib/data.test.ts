@@ -42,6 +42,16 @@ describe("getCategoryCounts", () => {
     expect(counts.smartphones).toBeGreaterThan(0);
     expect(counts.laptops ?? 0).toBe(0);
   });
+
+  it("narrows to the active store filter without collapsing to just that store's currently-selected category (the cross-facet bug this fixes)", async () => {
+    // ITTI only carries the seed data's MacBook (laptops) and LG TV (televisions) — a store
+    // filter should scope category counts to what that store actually sells, not the whole
+    // catalog, and should still list every category ITTI sells (not just laptops).
+    const counts = await getCategoryCounts("", "itti");
+    expect(counts.laptops).toBeGreaterThan(0);
+    expect(counts.televisions).toBeGreaterThan(0);
+    expect(counts.smartphones ?? 0).toBe(0);
+  });
 });
 
 describe("getComparableProducts (§multi-store-only, then §no-hardcoding: 'Popular comparisons' is a real live query, not gated on the manually-set `featured` flag)", () => {
@@ -66,6 +76,12 @@ describe("getStoreCounts (same fix as getCategoryCounts, so the Store filter's c
     const counts = await getStoreCounts("iphone");
     expect(counts["evo-store"]).toBeGreaterThan(0);
     expect(counts["itti"] ?? 0).toBe(0); // ITTI only carries the seed data's MacBook/TV, not the iPhone
+  });
+
+  it("narrows to the active category filter (the cross-facet bug this fixes: a store's count should read 0, not its global total, once a category with no overlap is also selected)", async () => {
+    const counts = await getStoreCounts("", "smartphones");
+    expect(counts["evo-store"]).toBeGreaterThan(0); // Evo sells the seed data's smartphones
+    expect(counts["itti"] ?? 0).toBe(0); // ITTI sells zero smartphones, only a laptop and a TV
   });
 });
 

@@ -190,24 +190,43 @@ async function fetchAllRows<T>(buildPage: (from: number, to: number) => PromiseL
  * separate, lightweight query — deliberately not the full `productListSelect` — so it can count
  * across every category at once, ignoring the category filter, while still respecting an active
  * search-text query (a category count should still narrow when you're searching "iphone").
+ *
+ * §cross-facet (live bug report): counts also need to respect an active STORE filter — otherwise
+ * selecting a single-category store (e.g. Bigbyte, cameras-only) still showed every category's
+ * *global* count in the sidebar, so clicking into "Smartphones" landed on 0 results while the
+ * sidebar kept reading "Bigbyte 82", with no indication that combination was empty. `storeSlug` is
+ * optional and, when given, narrows to products actually carried by that store (via an inner join
+ * through offers -> stores) — while still counting across every category, never just the one
+ * currently selected, which is the whole point of this being a separate query in the first place.
  */
-export async function getCategoryCounts(query = ""): Promise<Record<string, number>> {
+export async function getCategoryCounts(query = "", storeSlug?: string): Promise<Record<string, number>> {
   if (!supabase) {
     const normalized = query.toLowerCase().trim();
+    const storeById = new Map(stores.map((store) => [store.id, store]));
     const counts: Record<string, number> = {};
     for (const product of products) {
       if (normalized && !`${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(normalized)) continue;
+      if (storeSlug && !product.offers.some((offer) => storeById.get(offer.storeId)?.slug === storeSlug)) continue;
       counts[product.categorySlug] = (counts[product.categorySlug] || 0) + 1;
     }
     return counts;
   }
   const safeQuery = query.replace(/[%,()]/g, " ").trim();
-  const buildBase = () => {
-    let request = supabase!.from("products").select("categories!inner(slug)").eq("status", "active");
-    if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
-    return request;
-  };
-  const data = await fetchAllRows<{ categories: { slug: string } | null }>((from, to) => buildBase().range(from, to));
+  // Two separate literal .select() strings, not one built from a ternary — supabase-js parses
+  // the select string at the TYPE level to infer the row shape, and a computed/conditional string
+  // breaks that parser (it can't statically know which branch runs), producing a ParserError type
+  // instead of the real row shape.
+  const data = storeSlug
+    ? await fetchAllRows<{ categories: { slug: string } | null }>((from, to) => {
+        let request = supabase!.from("products").select("categories!inner(slug), offers!inner(stores!inner(slug))").eq("status", "active").eq("offers.stores.slug", storeSlug).eq("offers.is_disabled", false);
+        if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+        return request.range(from, to);
+      })
+    : await fetchAllRows<{ categories: { slug: string } | null }>((from, to) => {
+        let request = supabase!.from("products").select("categories!inner(slug)").eq("status", "active");
+        if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+        return request.range(from, to);
+      });
   const counts: Record<string, number> = {};
   for (const row of data) {
     const slug = row.categories?.slug;
@@ -230,18 +249,23 @@ export async function getStores(): Promise<Store[]> {
 }
 
 /**
- * Same idea and shape as getCategoryCounts (same §category-count fix) — a separate, lightweight
- * query rather than deriving each store's count from the current page's already-filtered
- * `products`, so viewing one store's products doesn't zero out every other store's count. Counts
- * live, non-disabled offers only, keyed by store slug (the same key the Store filter buttons use).
+ * Same idea and shape as getCategoryCounts (same §category-count fix, same §cross-facet fix) — a
+ * separate, lightweight query rather than deriving each store's count from the current page's
+ * already-filtered `products`, so viewing one store's products doesn't zero out every other
+ * store's count. Counts live, non-disabled offers only, keyed by store slug (the same key the
+ * Store filter buttons use). `categorySlug` is optional and, when given, narrows to products
+ * actually in that category — mirroring getCategoryCounts' `storeSlug` param — so a store's count
+ * correctly reads 0 once a category with no overlap is also selected, instead of still showing
+ * that store's *global* total.
  */
-export async function getStoreCounts(query = ""): Promise<Record<string, number>> {
+export async function getStoreCounts(query = "", categorySlug?: string): Promise<Record<string, number>> {
   if (!supabase) {
     const normalized = query.toLowerCase().trim();
     const storeById = new Map(stores.map((store) => [store.id, store]));
     const counts: Record<string, number> = {};
     for (const product of products) {
       if (normalized && !`${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(normalized)) continue;
+      if (categorySlug && product.categorySlug !== categorySlug) continue;
       for (const offer of product.offers) {
         const store = storeById.get(offer.storeId);
         if (store) counts[store.slug] = (counts[store.slug] || 0) + 1;
@@ -250,12 +274,19 @@ export async function getStoreCounts(query = ""): Promise<Record<string, number>
     return counts;
   }
   const safeQuery = query.replace(/[%,()]/g, " ").trim();
-  const buildBase = () => {
-    let request = supabase!.from("products").select("offers(is_disabled, stores(slug))").eq("status", "active");
-    if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
-    return request;
-  };
-  const data = await fetchAllRows<{ offers: { is_disabled?: boolean; stores: { slug: string } | null }[] | null }>((from, to) => buildBase().range(from, to));
+  // Two separate literal .select() strings — see the matching comment in getCategoryCounts for
+  // why a ternary-built select string breaks supabase-js's compile-time row-shape parser.
+  const data = categorySlug
+    ? await fetchAllRows<{ offers: { is_disabled?: boolean; stores: { slug: string } | null }[] | null }>((from, to) => {
+        let request = supabase!.from("products").select("offers(is_disabled, stores(slug)), categories!inner(slug)").eq("status", "active").eq("categories.slug", categorySlug);
+        if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+        return request.range(from, to);
+      })
+    : await fetchAllRows<{ offers: { is_disabled?: boolean; stores: { slug: string } | null }[] | null }>((from, to) => {
+        let request = supabase!.from("products").select("offers(is_disabled, stores(slug))").eq("status", "active");
+        if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
+        return request.range(from, to);
+      });
   const counts: Record<string, number> = {};
   for (const row of data) {
     for (const offer of row.offers || []) {
