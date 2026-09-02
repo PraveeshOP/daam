@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import type { ProductWithOffers, Store } from "@/types";
 import { ProductCard } from "@/components/ProductCard";
 import { categories } from "@/lib/seed-data";
@@ -14,6 +14,9 @@ export type SearchViewFilters = {
   inStock: boolean;
   sort: "relevance" | "lowest" | "highest" | "discount" | "recent";
 };
+
+const hasActiveFilters = (filters: SearchViewFilters) =>
+  Boolean(filters.category || filters.store || filters.minPrice || filters.maxPrice || filters.inStock);
 
 type FilterProps = {
   filters: SearchViewFilters;
@@ -31,33 +34,56 @@ type FilterProps = {
 
 type FilterControlProps = FilterProps & {
   onChange: (key: keyof SearchViewFilters, value: string | boolean) => void;
+  onClear: () => void;
 };
 
-function FilterControls({ filters, onChange, categoryCounts, stores, storeCounts }: FilterControlProps) {
+function FilterControls({ filters, onChange, onClear, categoryCounts, stores, storeCounts }: FilterControlProps) {
   return (
     <div className="space-y-7">
+      {hasActiveFilters(filters) && (
+        <button type="button" onClick={onClear} className="flex items-center gap-1.5 text-xs font-bold text-[#0c8b67] hover:underline">
+          <X size={14} /> Clear all filters
+        </button>
+      )}
       <div>
         <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Category</p>
         <div className="space-y-2">
-          {categories.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 text-sm">
-              <button type="button" aria-pressed={filters.category === item.slug} onClick={() => onChange("category", filters.category === item.slug ? "" : item.slug)} className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#7e8582]" aria-label={item.name}><span className={`h-2.5 w-2.5 rounded-full ${filters.category === item.slug ? "bg-[#0c8b67]" : "bg-transparent"}`} /></button>
-              {item.name}
-              <span className="ml-auto text-xs text-[#a0aaa5]">{categoryCounts[item.slug] ?? 0}</span>
-            </div>
-          ))}
+          {categories.map((item) => {
+            const count = categoryCounts[item.slug] ?? 0;
+            const isSelected = filters.category === item.slug;
+            // A category with zero matches under the currently active Store filter can't lead
+            // anywhere useful — disabled (not just showing a misleading "0" next to a still-
+            // clickable option) rather than letting someone pick a combination that's guaranteed
+            // to render "No products found". The currently selected option stays clickable
+            // either way, so it can always be deselected.
+            const disabled = count === 0 && !isSelected;
+            return (
+              <div key={item.id} className={`flex items-center gap-3 text-sm ${disabled ? "text-[#b7bfba]" : ""}`}>
+                <button type="button" disabled={disabled} aria-pressed={isSelected} onClick={() => onChange("category", isSelected ? "" : item.slug)} className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${disabled ? "cursor-not-allowed border-[#dbe3de]" : "border-[#7e8582]"}`} aria-label={item.name}><span className={`h-2.5 w-2.5 rounded-full ${isSelected ? "bg-[#0c8b67]" : "bg-transparent"}`} /></button>
+                {item.name}
+                <span className="ml-auto text-xs text-[#a0aaa5]">{count > 0 ? count : ""}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
       <div>
         <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#88948e]">Store</p>
         <div className="space-y-2">
-          {stores.map((item) => (
-            <div key={item.id} className="flex items-center gap-3 text-sm">
-              <button type="button" aria-pressed={filters.store === item.slug} onClick={() => onChange("store", filters.store === item.slug ? "" : item.slug)} className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#7e8582]" aria-label={item.name}><span className={`h-2.5 w-2.5 rounded-full ${filters.store === item.slug ? "bg-[#0c8b67]" : "bg-transparent"}`} /></button>
-              {item.name}
-              <span className="ml-auto text-xs text-[#a0aaa5]">{storeCounts[item.slug] ?? 0}</span>
-            </div>
-          ))}
+          {stores.map((item) => {
+            const count = storeCounts[item.slug] ?? 0;
+            const isSelected = filters.store === item.slug;
+            // Same reasoning as the Category disabling above, mirrored for the active Category
+            // filter instead.
+            const disabled = count === 0 && !isSelected;
+            return (
+              <div key={item.id} className={`flex items-center gap-3 text-sm ${disabled ? "text-[#b7bfba]" : ""}`}>
+                <button type="button" disabled={disabled} aria-pressed={isSelected} onClick={() => onChange("store", isSelected ? "" : item.slug)} className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${disabled ? "cursor-not-allowed border-[#dbe3de]" : "border-[#7e8582]"}`} aria-label={item.name}><span className={`h-2.5 w-2.5 rounded-full ${isSelected ? "bg-[#0c8b67]" : "bg-transparent"}`} /></button>
+                {item.name}
+                <span className="ml-auto text-xs text-[#a0aaa5]">{count > 0 ? count : ""}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
       <div>
@@ -83,9 +109,17 @@ function updateUrl(key: keyof SearchViewFilters, value: string | boolean) {
   return `/search?${params.toString()}`;
 }
 
+// Clears every filter/sort param but keeps the search text (`q`) — clearing filters isn't the
+// same action as clearing what you searched for.
+function clearFiltersUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const query = params.get("q");
+  return query ? `/search?q=${encodeURIComponent(query)}` : "/search";
+}
+
 export function FilterSidebar({ filters, categoryCounts, stores, storeCounts }: FilterProps) {
   const router = useRouter();
-  return <aside className="hidden rounded-[4px] border border-[#e3e9e5] bg-white p-5 lg:block"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} categoryCounts={categoryCounts} stores={stores} storeCounts={storeCounts} /></aside>;
+  return <aside className="hidden rounded-[4px] border border-[#e3e9e5] bg-white p-5 lg:block"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} onClear={() => router.push(clearFiltersUrl())} categoryCounts={categoryCounts} stores={stores} storeCounts={storeCounts} /></aside>;
 }
 
 export function SearchResults({
@@ -112,14 +146,13 @@ export function SearchResults({
 }) {
   const router = useRouter();
   const favoritedSet = new Set(favoritedProductIds);
-  const hasActiveFilters = Boolean(filters.category || filters.store || filters.minPrice || filters.maxPrice || filters.inStock);
   return <>
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <button type="button" onClick={() => document.getElementById("mobile-filters")?.classList.toggle("hidden")} className="flex items-center gap-2 rounded-[3px] border border-[#d6dfda] bg-white px-3 py-2 text-sm font-bold lg:hidden"><SlidersHorizontal size={16} /> Filters{hasActiveFilters ? " · Active" : ""}</button>
+      <button type="button" onClick={() => document.getElementById("mobile-filters")?.classList.toggle("hidden")} className="flex items-center gap-2 rounded-[3px] border border-[#d6dfda] bg-white px-3 py-2 text-sm font-bold lg:hidden"><SlidersHorizontal size={16} /> Filters{hasActiveFilters(filters) ? " · Active" : ""}</button>
       <p className="hidden text-sm text-[#66736e] lg:block">{total} products found</p>
       <label className="ml-auto flex items-center gap-2 text-sm text-[#66736e]">Sort by <span className="relative"><select aria-label="Sort products" value={filters.sort} onChange={(event) => router.push(updateUrl("sort", event.target.value))} className="appearance-none rounded-[3px] border border-[#d6dfda] bg-white py-2 pl-3 pr-8 font-semibold text-[#17221f] outline-none focus:border-[#0c8b67]"><option value="relevance">Relevance</option><option value="lowest">Lowest price</option><option value="highest">Highest price</option><option value="discount">Biggest discount</option><option value="recent">Recently added</option></select><ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" /></span></label>
     </div>
-    <div id="mobile-filters" className="mb-5 hidden rounded-[4px] border border-[#d6dfda] bg-white p-5 lg:hidden"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} categoryCounts={categoryCounts} stores={stores} storeCounts={storeCounts} /></div>
+    <div id="mobile-filters" className="mb-5 hidden rounded-[4px] border border-[#d6dfda] bg-white p-5 lg:hidden"><FilterControls filters={filters} onChange={(key, value) => router.push(updateUrl(key, value))} onClear={() => router.push(clearFiltersUrl())} categoryCounts={categoryCounts} stores={stores} storeCounts={storeCounts} /></div>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{products.length ? products.map((product) => <ProductCard key={product.id} product={product} isFavorited={favoritedSet.has(product.id)} isAuthenticated={isAuthenticated} />) : <div className="col-span-full rounded-[4px] border border-dashed border-[#cbd8d1] bg-white p-12 text-center"><h2 className="text-xl font-bold">No products found</h2><p className="mt-2 text-sm text-[#66736e]">Try another search or adjust your filters.</p></div>}</div>
   </>;
 }
