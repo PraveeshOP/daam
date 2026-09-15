@@ -36,6 +36,21 @@ export type Offer = {
    * staleness check has something real to compare against. Optional for the same reason:
    * absent (seed-data fallback) just means "skip the staleness check", the correct default. */
   lastCheckedAt?: string;
+  /**
+   * Present only when this row is a C2C marketplace advert rather than a shop's offer.
+   *
+   * Modelling a listing as an `Offer` is what lets it rank against real offers everywhere at once
+   * (lowest price, savings, the offers table, search sorting) without each of those growing a
+   * special case. The flag is what the UI keys off to attach the seller disclosure, and what the
+   * price-alert path keys off to exclude it — a listing must never trigger an alert, because it
+   * disappears the moment the seller sells the item.
+   */
+  marketplace?: {
+    source: string;
+    sourceName: string;
+    condition: string;
+    negotiable: boolean;
+  };
 };
 
 export type PricePoint = { label: string; price: number };

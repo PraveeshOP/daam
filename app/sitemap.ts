@@ -3,7 +3,7 @@ import { supabase } from "@/lib/data";
 
 const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-const STATIC_ROUTES = ["", "/search", "/categories"];
+const STATIC_ROUTES = ["", "/search", "/categories", "/marketplace"];
 
 /**
  * §H-seo (phase-9 audit): no sitemap existed at all — for a price-comparison site, the product

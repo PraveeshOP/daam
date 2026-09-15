@@ -88,6 +88,46 @@ create index if not exists offers_product_price_idx on offers (product_id, price
 create index if not exists offers_store_availability_idx on offers (store_id, availability);
 create index if not exists price_history_product_recorded_idx on price_history (product_id, recorded_at desc);
 
+-- C2C marketplace listings (HamroBazaar today) — many independent sellers, not one retailer's
+-- catalogue, and not necessarily used. Kept apart from `offers` on purpose:
+-- `offers` is unique(product_id, store_id), so the many independent sellers who list the same
+-- model on a classifieds site would collapse into a single row, and used-goods prices matched
+-- onto canonical products would make the marketplace permanently "cheapest" in every comparison.
+-- Full reasoning in supabase/migrations/20260914_add_marketplace_listings.sql.
+--
+-- Seller identity is intentionally not modelled here: the source exposes seller names and phone
+-- numbers, none of which is needed to compare prices, so there is no column for it.
+create table if not exists marketplace_listings (
+  id uuid primary key default gen_random_uuid(),
+  source text not null,
+  external_id text not null,
+  product_id uuid references products(id) on delete set null,
+  category_id uuid references categories(id) on delete set null,
+  title text not null,
+  source_category text,
+  brand text,
+  price numeric(12,2) not null check (price >= 0),
+  currency text not null default 'NPR',
+  condition text not null default 'unknown' check (condition in ('brand_new', 'like_new', 'used', 'unknown')),
+  negotiable boolean not null default false,
+  listing_url text not null,
+  image_url text,
+  posted_at timestamptz,
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  unique(source, external_id)
+);
+
+alter table marketplace_listings enable row level security;
+
+drop policy if exists "Public can read marketplace listings" on marketplace_listings;
+
+create policy "Public can read marketplace listings" on marketplace_listings for select using (true);
+
+create index if not exists marketplace_listings_source_seen_idx on marketplace_listings (source, last_seen_at desc);
+create index if not exists marketplace_listings_product_idx on marketplace_listings (product_id) where product_id is not null;
+create index if not exists marketplace_listings_category_price_idx on marketplace_listings (source_category, price);
+
 insert into categories (name, slug) values
   ('Smartphones', 'smartphones'), ('Laptops', 'laptops'), ('Audio', 'audio'), ('TVs', 'televisions'),
   ('Cameras', 'cameras'), ('Gaming', 'gaming'), ('Smartwatches', 'smartwatches'), ('Home appliances', 'home-appliances')

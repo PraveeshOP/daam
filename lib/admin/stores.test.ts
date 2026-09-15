@@ -6,6 +6,7 @@ const job = (overrides: Partial<CollectionJobView>): CollectionJobView => ({
   id: "job-1",
   storeId: "evo-store",
   storeName: "Evo Store",
+  kind: "retail",
   status: "completed",
   startedAt: new Date().toISOString(),
   completedAt: new Date().toISOString(),

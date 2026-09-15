@@ -55,12 +55,19 @@ export default async function AdminCollectionsPage({ searchParams }: { searchPar
             )}
             {jobs.map((job) => (
               <tr key={job.id}>
-                <td className="px-4 py-3 font-semibold">{job.storeName}</td>
+                <td className="px-4 py-3 font-semibold">
+                  {job.storeName}
+                  {job.kind === "marketplace" && (
+                    <span className="ml-2 rounded bg-[#eef2ff] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#4c51bf]">
+                      Marketplace
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3">{formatDateTime(job.startedAt)}</td>
                 <td className="px-4 py-3">{formatDuration(job.durationMs)}</td>
                 <td className="px-4 py-3">{job.discovered}</td>
                 <td className="px-4 py-3">{job.updatedOffers}</td>
-                <td className="px-4 py-3">{job.priceChanges}</td>
+                <td className="px-4 py-3">{job.kind === "marketplace" ? <span title="Marketplace listings do not take part in retail price comparison">&mdash;</span> : job.priceChanges}</td>
                 <td className="px-4 py-3">{job.errorCount}</td>
                 <td className="px-4 py-3">
                   <StatusBadge

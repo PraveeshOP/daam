@@ -55,6 +55,9 @@ export function Header({ userEmail }: { userEmail?: string | null }) {
           >
             Price drops
           </Link>
+          <Link href="/marketplace" className="transition hover:text-[#0c8b67]">
+            Marketplace
+          </Link>
         </nav>
         <div className="hidden items-center gap-1 lg:flex">
           {userEmail ? (

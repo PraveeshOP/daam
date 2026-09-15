@@ -1,6 +1,7 @@
 import type { Job } from "bullmq";
 import { getPriceCollectionQueue } from "@/lib/queue/priceCollection";
 import { getCollector } from "@/collectors/registry";
+import { MARKETPLACE_COLLECTORS } from "@/collectors/marketplaceRegistry";
 import type { ProcessorResult } from "@/worker/processor";
 import type { PriceCollectionJobData } from "@/lib/queue/priceCollection";
 
@@ -10,6 +11,10 @@ export type CollectionJobView = {
   id: string;
   storeId: string;
   storeName: string;
+  /** Retail collections and C2C marketplace runs share this queue but not their column
+   * meanings: a marketplace run has no offers and no price history, so the UI must label the
+   * row rather than let a structural zero read as "no price changes were detected". */
+  kind: "retail" | "marketplace";
   status: CollectionStatus;
   startedAt: string | null;
   completedAt: string | null;
@@ -25,6 +30,8 @@ export type CollectionJobView = {
 };
 
 function storeName(storeId: string): string {
+  const marketplace = MARKETPLACE_COLLECTORS[storeId];
+  if (marketplace) return marketplace.source.name;
   try {
     return getCollector(storeId).store.name;
   } catch {
@@ -39,24 +46,31 @@ function mapJob(job: Job<PriceCollectionJobData>, status: CollectionStatus): Col
   const completedAt = job.finishedOn ? new Date(job.finishedOn).toISOString() : null;
 
   const result = status === "completed" ? (job.returnvalue as ProcessorResult | undefined) : undefined;
-  const summary = result && !result.skipped ? result.summary : undefined;
+  const finished = result && !result.skipped ? result : undefined;
+  const summary = finished && !("marketplace" in finished) ? finished.summary : undefined;
+  const marketplaceSummary = finished && "marketplace" in finished ? finished.marketplaceSummary : undefined;
   const resolvedStatus: CollectionStatus = result?.skipped ? "skipped" : status;
 
+  // A marketplace run's counts are mapped only onto the columns where they mean the same thing:
+  // "discovered" is listings seen, and re-seeing a listing is the closest analogue of updating an
+  // offer. `createdProducts`/`matchedProducts`/`createdOffers` stay 0 because no canonical
+  // product or offer is ever written on that path — see collectors/core/marketplace.ts.
   return {
     id: job.id || "",
     storeId: job.data.storeId,
     storeName: storeName(job.data.storeId),
+    kind: marketplaceSummary || job.data.storeId in MARKETPLACE_COLLECTORS ? "marketplace" : "retail",
     status: resolvedStatus,
-    startedAt: result && !result.skipped ? result.startedAt : startedAt,
+    startedAt: finished ? finished.startedAt : startedAt,
     completedAt,
-    durationMs: result && !result.skipped ? result.durationMs : job.processedOn && job.finishedOn ? job.finishedOn - job.processedOn : null,
-    discovered: summary?.discovered ?? 0,
+    durationMs: finished ? finished.durationMs : job.processedOn && job.finishedOn ? job.finishedOn - job.processedOn : null,
+    discovered: summary?.discovered ?? marketplaceSummary?.discovered ?? 0,
     createdProducts: summary?.createdProducts ?? 0,
     matchedProducts: summary?.matchedProducts ?? 0,
     createdOffers: summary?.createdOffers ?? 0,
-    updatedOffers: summary?.updatedOffers ?? 0,
+    updatedOffers: summary?.updatedOffers ?? marketplaceSummary?.updated ?? 0,
     priceChanges: summary?.priceChanges ?? 0,
-    errorCount: summary?.errors.length ?? 0,
+    errorCount: summary?.errors.length ?? marketplaceSummary?.errors.length ?? 0,
     failedReason: status === "failed" ? job.failedReason || "Unknown error" : null,
   };
 }

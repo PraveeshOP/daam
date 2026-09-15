@@ -76,6 +76,14 @@ export type Database = {
           { foreignKeyName: "analytics_events_store_id_fkey"; columns: ["store_id"]; isOneToOne: false; referencedRelation: "stores"; referencedColumns: ["id"] },
         ];
       };
+      /** C2C marketplace listings. Separate from `offers` by design — see
+       * supabase/migrations/20260914_add_marketplace_listings.sql. No seller-identity columns. */
+      marketplace_listings: {
+        Row: { id: string; source: string; external_id: string; product_id: string | null; category_id: string | null; title: string; source_category: string | null; brand: string | null; price: number; currency: string; condition: string; negotiable: boolean; listing_url: string; image_url: string | null; posted_at: string | null; first_seen_at: string; last_seen_at: string };
+        Insert: { id?: string; source: string; external_id: string; product_id?: string | null; category_id?: string | null; title: string; source_category?: string | null; brand?: string | null; price: number; currency?: string; condition?: string; negotiable?: boolean; listing_url: string; image_url?: string | null; posted_at?: string | null; first_seen_at?: string; last_seen_at?: string };
+        Update: { id?: string; source?: string; external_id?: string; product_id?: string | null; category_id?: string | null; title?: string; source_category?: string | null; brand?: string | null; price?: number; currency?: string; condition?: string; negotiable?: boolean; listing_url?: string; image_url?: string | null; posted_at?: string | null; first_seen_at?: string; last_seen_at?: string };
+        Relationships: [{ foreignKeyName: "marketplace_listings_product_id_fkey"; columns: ["product_id"]; isOneToOne: false; referencedRelation: "products"; referencedColumns: ["id"] }, { foreignKeyName: "marketplace_listings_category_id_fkey"; columns: ["category_id"]; isOneToOne: false; referencedRelation: "categories"; referencedColumns: ["id"] }];
+      };
       data_quality_snapshots: {
         Row: { id: string; issue_key: string; issue_count: number; created_at: string };
         Insert: { id?: string; issue_key: string; issue_count: number; created_at?: string };

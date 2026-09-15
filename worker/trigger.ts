@@ -1,5 +1,6 @@
 import { loadEnvConfig } from "@next/env";
 import { STORE_IDS, getCollector } from "@/collectors/registry";
+import { MARKETPLACE_SOURCE_IDS, isMarketplaceSource } from "@/collectors/marketplaceRegistry";
 import { closeRedisConnection, getSharedRedisConnection } from "@/lib/queue/redis";
 import { getPriceCollectionQueue } from "@/lib/queue/priceCollection";
 
@@ -13,8 +14,10 @@ loadEnvConfig(process.cwd());
  */
 async function main() {
   const storeId = process.argv[2];
-  if (!storeId) throw new Error(`usage: tsx worker/trigger.ts <storeId>\nknown stores: ${STORE_IDS.join(", ")}`);
-  getCollector(storeId); // throws a clear error for an unknown storeId before touching Redis
+  if (!storeId) throw new Error(`usage: tsx worker/trigger.ts <storeId>\nknown stores: ${STORE_IDS.join(", ")}\nknown marketplaces: ${MARKETPLACE_SOURCE_IDS.join(", ")}`);
+  // Marketplace sources are queued through this same script but live in their own registry, so
+  // the pre-flight check has to consult both before deciding an id is unknown.
+  if (!isMarketplaceSource(storeId)) getCollector(storeId); // throws a clear error before touching Redis
   const queue = getPriceCollectionQueue();
   const job = await queue.add("collect", { storeId }, { jobId: `manual-${storeId}-${Date.now()}` });
   console.log(`Queued manual collection for "${storeId}" (job ${job.id}). Make sure the worker is running: npm run worker:dev`);

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { categories, products, stores } from "@/lib/seed-data";
+import { marketplaceSourceName } from "@/lib/marketplace";
 import type { Database } from "@/types/database";
 import type {
   Availability,
@@ -56,6 +57,19 @@ type DatabaseOffer = {
   stores: DatabaseStore | null;
 };
 
+type DatabaseMarketplaceListing = {
+  id: string;
+  source: string;
+  external_id: string;
+  product_id: string | null;
+  title: string;
+  price: number | string;
+  condition: string;
+  negotiable: boolean;
+  listing_url: string;
+  last_seen_at: string;
+};
+
 type DatabaseHistory = {
   price: number | string;
   recorded_at: string;
@@ -74,6 +88,9 @@ export type DatabaseProduct = {
   created_at: string;
   categories: { name: string; slug: string } | null;
   offers: DatabaseOffer[] | null;
+  /** Linked C2C listings, embedded through marketplace_listings.product_id. Absent on the
+   * seed-data fallback path and on any select that doesn't ask for them. */
+  marketplace_listings?: DatabaseMarketplaceListing[] | null;
   // §9-critical (phase-9 audit): list views (getFeaturedProducts/searchProducts) never select
   // price_history at all — ProductCard, the only thing that renders those results, doesn't use
   // it — so this is optional/absent there, and only present (bounded to ~6 months) on getProduct.
@@ -91,6 +108,54 @@ const asStore = (store: DatabaseStore): Store => ({
   delivery: store.description || "Delivery across Nepal",
   affiliateEnabled: store.affiliate_enabled ?? false,
   partnershipStatus: store.partnership_status ?? "none",
+});
+
+/**
+ * A marketplace source is not a row in `stores` (see the migration for why), but the offers table
+ * renders per-store, so one synthetic Store stands in for the whole source. `affiliateEnabled` is
+ * false and `partnershipStatus` "none" so the affiliate/destination machinery treats these as
+ * plain outbound links, which is exactly what they are.
+ */
+export const MARKETPLACE_STORE_PREFIX = "marketplace-";
+
+/** True for a slug produced by `marketplaceStore` below. The store filter is a single list mixing
+ * real shops and marketplace sources, so the query paths need to tell them apart: the two are
+ * backed by different tables. */
+export const isMarketplaceStoreSlug = (slug: string) => slug.startsWith(MARKETPLACE_STORE_PREFIX);
+
+export const marketplaceStore = (source: string): Store => ({
+  id: `marketplace:${source}`,
+  name: marketplaceSourceName(source),
+  slug: `${MARKETPLACE_STORE_PREFIX}${source}`,
+  logo: marketplaceSourceName(source).slice(0, 1),
+  delivery: "Seller advert \u2014 arrange directly",
+  affiliateEnabled: false,
+  partnershipStatus: "none",
+});
+
+/**
+ * A listing becomes an `Offer` so it ranks alongside real offers without every consumer (enrich,
+ * sortProducts, OfferTable, search) needing a parallel code path. `availability` is "in_stock"
+ * because a listing only exists while the seller still has the item — there is no out-of-stock
+ * state to represent, and marking them otherwise would drop them out of `enrich`'s in-stock price
+ * set and silently exclude them from the comparison.
+ */
+const asMarketplaceOffer = (listing: DatabaseMarketplaceListing): Offer => ({
+  id: `marketplace:${listing.id}`,
+  productId: listing.product_id || "",
+  storeId: `marketplace:${listing.source}`,
+  externalId: listing.external_id,
+  price: Number(listing.price),
+  availability: "in_stock",
+  productUrl: listing.listing_url,
+  lastChecked: new Date(listing.last_seen_at).toLocaleDateString("en-NP", { month: "short", day: "numeric" }),
+  lastCheckedAt: listing.last_seen_at,
+  marketplace: {
+    source: listing.source,
+    sourceName: marketplaceSourceName(listing.source),
+    condition: listing.condition,
+    negotiable: listing.negotiable,
+  },
 });
 
 export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
@@ -122,11 +187,12 @@ export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
       day: "numeric",
     }),
     lastCheckedAt: offer.last_checked,
-  })),
+  })).concat((row.marketplace_listings || []).map(asMarketplaceOffer)),
   offerStores: (row.offers || [])
     .map((offer) => offer.stores)
     .filter((store): store is DatabaseStore => Boolean(store))
-    .map(asStore),
+    .map(asStore)
+    .concat([...new Set((row.marketplace_listings || []).map((listing) => listing.source))].map(marketplaceStore)),
   history: Object.values((row.price_history || [])
     .sort(
       (first, second) =>
@@ -156,8 +222,9 @@ export const mapDatabaseProduct = (row: DatabaseProduct): Product => ({
 // recorded for every matching product, unfiltered by date or count, even though ProductCard (the
 // only thing rendering these results) never reads `history`. getProduct has its own select below
 // that adds price_history back, bounded to the window the UI actually shows.
+const MARKETPLACE_EMBED = "marketplace_listings(id, source, external_id, product_id, title, price, condition, negotiable, listing_url, last_seen_at)";
 const productListSelect =
-  "*, categories!inner(name, slug), offers(*, stores(id, name, slug, logo_url, description, affiliate_enabled, partnership_status))";
+  `*, categories!inner(name, slug), offers(*, stores(id, name, slug, logo_url, description, affiliate_enabled, partnership_status)), ${MARKETPLACE_EMBED}`;
 const PRICE_HISTORY_MONTHS = 6;
 
 /**
@@ -245,7 +312,23 @@ export async function getStores(): Promise<Store[]> {
   if (!supabase) return stores;
   const { data, error } = await supabase.from("stores").select("id, name, slug, logo_url, description, affiliate_enabled, partnership_status").order("name");
   if (error || !data?.length) return stores;
-  return (data as unknown as DatabaseStore[]).map(asStore);
+  const shopStores = (data as unknown as DatabaseStore[]).map(asStore);
+  // Marketplace sources are not rows in `stores` (see the migration for why) but their listings
+  // do rank in the comparison, so leaving them out of this list meant a shopper could see
+  // "HamroBazaar" holding the best price on a product page and have no way to filter by it.
+  // Appended rather than merged in alphabetically: these are a different kind of thing, and the
+  // filter reads better with the real shops first.
+  return [...shopStores, ...(await getMarketplaceStores())];
+}
+
+/** One synthetic Store per marketplace source that currently has at least one *linked* listing.
+ * Unlinked listings are excluded deliberately: they have no product, so filtering search results
+ * by that source could never return them, and offering the filter would be a dead end. */
+async function getMarketplaceStores(): Promise<Store[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("marketplace_listings").select("source").not("product_id", "is", null).limit(1000);
+  if (error || !data?.length) return [];
+  return [...new Set((data as { source: string }[]).map((row) => row.source))].sort().map(marketplaceStore);
 }
 
 /**
@@ -295,7 +378,36 @@ export async function getStoreCounts(query = "", categorySlug?: string): Promise
       if (slug) counts[slug] = (counts[slug] || 0) + 1;
     }
   }
+  Object.assign(counts, await getMarketplaceStoreCounts(safeQuery, categorySlug));
   return counts;
+}
+
+/**
+ * The marketplace half of getStoreCounts. Counted over `marketplace_listings` rather than
+ * `offers`, and over *distinct products* — two listings of the same model from the same source
+ * are one product in the results, so counting rows would overstate what the filter returns.
+ */
+async function getMarketplaceStoreCounts(query: string, categorySlug?: string): Promise<Record<string, number>> {
+  if (!supabase) return {};
+  const { data, error } = await supabase
+    .from("marketplace_listings")
+    .select("source, product_id, products!inner(name, brand, status, categories!inner(slug))")
+    .not("product_id", "is", null)
+    .eq("products.status", "active")
+    .limit(1000);
+  if (error || !data) return {};
+  type Row = { source: string; product_id: string | null; products: { name: string; brand: string; categories: { slug: string } | null } | null };
+  const seen = new Map<string, Set<string>>();
+  const normalized = query.toLowerCase().trim();
+  for (const row of data as unknown as Row[]) {
+    if (!row.product_id || !row.products) continue;
+    if (categorySlug && row.products.categories?.slug !== categorySlug) continue;
+    if (normalized && !`${row.products.name} ${row.products.brand}`.toLowerCase().includes(normalized)) continue;
+    const slug = `${MARKETPLACE_STORE_PREFIX}${row.source}`;
+    if (!seen.has(slug)) seen.set(slug, new Set());
+    seen.get(slug)!.add(row.product_id);
+  }
+  return Object.fromEntries([...seen.entries()].map(([slug, ids]) => [slug, ids.size]));
 }
 
 /**
@@ -412,10 +524,16 @@ export async function searchProducts(query = "", filters: SearchFilters = {}) {
   if (safeQuery) request = request.or(`name.ilike.%${safeQuery}%,brand.ilike.%${safeQuery}%`);
   if (filters.category) request = request.eq("categories.slug", filters.category);
   if (filters.store) {
-    const offerRows = await fetchAllRows<{ product_id: string }>((from, to) =>
-      supabase!.from("offers").select("product_id, stores!inner(slug)").eq("stores.slug", filters.store!).eq("is_disabled", false).range(from, to),
-    );
-    const productIds = [...new Set(offerRows.map((row) => row.product_id))];
+    // A marketplace source has no `offers` rows at all, so the usual offers->stores lookup would
+    // always come back empty and the filter would silently return nothing. Its product ids come
+    // from the listings table instead.
+    const productIds = isMarketplaceStoreSlug(filters.store)
+      ? [...new Set((await fetchAllRows<{ product_id: string | null }>((from, to) =>
+          supabase!.from("marketplace_listings").select("product_id").eq("source", filters.store!.slice(MARKETPLACE_STORE_PREFIX.length)).not("product_id", "is", null).range(from, to),
+        )).map((row) => row.product_id).filter((id): id is string => Boolean(id)))]
+      : [...new Set((await fetchAllRows<{ product_id: string }>((from, to) =>
+          supabase!.from("offers").select("product_id, stores!inner(slug)").eq("stores.slug", filters.store!).eq("is_disabled", false).range(from, to),
+        )).map((row) => row.product_id))];
     if (!productIds.length) return [];
     request = request.in("id", productIds);
   }

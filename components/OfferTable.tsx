@@ -1,8 +1,9 @@
-import { ExternalLink, Truck, Clock } from "lucide-react";
+import { ExternalLink, Truck, Clock, Info } from "lucide-react";
 import type { Offer, Store } from "@/types";
 import { getStoreDestination } from "@/lib/stores/destination";
 import { rankOffers, bestOffer } from "@/lib/offers/ranking";
 import { isStale } from "@/lib/offers/staleness";
+import { CONDITION_LABELS } from "@/lib/marketplace";
 const npr = (value: number) => `NPR ${value.toLocaleString("en-IN")}`;
 export function OfferTable({
   offers,
@@ -34,12 +35,19 @@ export function OfferTable({
           Where to buy
         </p>
         <h2 className="mt-1 text-2xl font-bold">
-          Available from {offers.length} stores
+          {(() => {
+            const shopCount = offers.filter((item) => !item.marketplace).length;
+            const listingCount = offers.length - shopCount;
+            if (!listingCount) return `Available from ${shopCount} stores`;
+            if (!shopCount) return `${listingCount} seller ${listingCount === 1 ? "advert" : "adverts"}`;
+            return `Available from ${shopCount} stores + ${listingCount} seller ${listingCount === 1 ? "advert" : "adverts"}`;
+          })()}
         </h2>
       </div>
       <div>
         {sorted.map((offer) => {
           const store = stores.find((item) => item.id === offer.storeId);
+          const marketplace = offer.marketplace;
           const isBest =
             offer.price === best &&
             (offer.availability === "in_stock" || !inStock.length);
@@ -53,9 +61,21 @@ export function OfferTable({
                   {store?.logo}
                 </span>
                 <div>
-                  <p className="font-bold">{store?.name}</p>
+                  <p className="font-bold">
+                    {store?.name}
+                    {marketplace && (
+                      <span className="ml-2 rounded-[3px] bg-[#f2eee2] px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-[#8a7a4e]">
+                        Seller advert
+                      </span>
+                    )}
+                  </p>
                   <p className="mt-1 flex items-center gap-1 text-xs text-[#66736e]">
-                    <Truck size={12} /> {store?.delivery}
+                    {/* No seller promises delivery, so a marketplace row shows what the seller did
+                        state — condition, and whether the price is open to negotiation. */}
+                    <Truck size={12} />{" "}
+                    {marketplace
+                      ? `${CONDITION_LABELS[marketplace.condition] ?? marketplace.condition}${marketplace.negotiable ? " · Negotiable" : ""}`
+                      : store?.delivery}
                   </p>
                 </div>
               </div>
@@ -91,13 +111,29 @@ export function OfferTable({
                 never navigates away.
               */}
               <a
-                href={`/go/${offer.id}`}
+                href={marketplace ? offer.productUrl : `/go/${offer.id}`}
                 target="_blank"
-                rel="noreferrer"
+                rel={marketplace ? "noopener noreferrer nofollow" : "noreferrer"}
                 className="flex items-center justify-center gap-2 rounded-[3px] border border-[#bacac2] px-4 py-2 text-sm font-bold transition hover:border-[#0c8b67] hover:text-[#0c8b67]"
               >
-                Visit store <ExternalLink size={14} />
+                {marketplace ? "View listing" : "Visit store"} <ExternalLink size={14} />
               </a>
+              {/*
+                Shown on every marketplace row, not once per table: these sit inline among real
+                shop offers and can hold the best-price slot, so the caveat has to travel with the
+                individual price rather than being a footnote a reader may not connect to it.
+              */}
+              {marketplace && (
+                <div className="flex gap-2 rounded-[3px] bg-[#faf8f2] p-3 sm:col-span-3">
+                  <Info size={14} className="mt-0.5 shrink-0 text-[#8a7a4e]" />
+                  <p className="text-[11px] leading-5 text-[#66736e]">
+                    These are seller adverts, not shop listings. Prices are set by the seller and
+                    are often negotiable, and the item may be sold at any time. They do not appear
+                    in price history or price alerts. Deal directly with the seller and take the
+                    usual care you would on any classifieds site.
+                  </p>
+                </div>
+              )}
             </div>
           );
         })}

@@ -1,4 +1,5 @@
 import { STORE_IDS } from "@/collectors/registry";
+import { MARKETPLACE_SOURCE_IDS } from "@/collectors/marketplaceRegistry";
 import { log } from "@/lib/logger";
 import { getPriceCollectionQueue } from "@/lib/queue/priceCollection";
 
@@ -18,7 +19,10 @@ export function collectionIntervalMs() {
 export async function scheduleRecurringCollections() {
   const queue = getPriceCollectionQueue();
   const every = collectionIntervalMs();
-  for (const storeId of STORE_IDS) {
+  // Marketplace sources ride the same queue and interval as retail stores; the processor routes
+  // them to the marketplace import path by id (worker/processor.ts). Scheduling them here rather
+  // than in a second queue keeps one place where "everything that runs on a timer" is listed.
+  for (const storeId of [...STORE_IDS, ...MARKETPLACE_SOURCE_IDS]) {
     await queue.upsertJobScheduler(`schedule:${storeId}`, { every }, { name: "collect", data: { storeId } });
     log("scheduler", `${storeId} scheduled every ${Math.round(every / 60_000)}m`);
   }

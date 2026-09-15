@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "sewasmart.com" },
       { protocol: "https", hostname: "rapidotechnepal.com" },
       { protocol: "https", hostname: "exortstore.com" },
+      // HamroBazaar listing images. Both spellings occur in the same live feed — the CDN alias and
+      // the bare Spaces bucket — so both are allowed rather than only the one that happens to
+      // dominate today's rows.
+      { protocol: "https", hostname: "hamrobazaar.blr1.cdn.digitaloceanspaces.com" },
+      { protocol: "https", hostname: "hamrobazaar.blr1.digitaloceanspaces.com" },
+      { protocol: "https", hostname: "cdn03.hamrobazaar.com" },
     ],
   },
 };

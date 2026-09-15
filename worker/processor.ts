@@ -1,7 +1,9 @@
 import type { Job } from "bullmq";
 import type { Redis } from "ioredis";
 import { getCollector } from "@/collectors/registry";
+import { getMarketplaceCollector, isMarketplaceSource } from "@/collectors/marketplaceRegistry";
 import { formatSummary, runStoreCollection } from "@/collectors/core/run";
+import { formatMarketplaceSummary, runMarketplaceCollection, type MarketplaceSummary } from "@/collectors/core/marketplace";
 import { acquireStoreLock, releaseStoreLock } from "@/worker/lock";
 import { log, logError } from "@/lib/logger";
 import type { PriceCollectionJobData } from "@/lib/queue/priceCollection";
@@ -10,6 +12,9 @@ import { withSpan } from "@/lib/otel/tracing";
 import { storeCollectionDuration, storeCollectionFailureTotal, storeCollectionSuccessTotal, productsCollectedTotal, productsMatchedTotal, productsCreatedTotal, priceChangesTotal } from "@/lib/otel/metrics";
 
 const DEFAULT_PRODUCT_LIMIT = Number(process.env.COLLECTION_PRODUCT_LIMIT || 20);
+// A marketplace run is a single page fetch that yields everything the source server-renders, so
+// this is a cap on what one run may store, not a crawl budget like COLLECTION_PRODUCT_LIMIT.
+const DEFAULT_MARKETPLACE_LISTING_LIMIT = Number(process.env.MARKETPLACE_LISTING_LIMIT || 100);
 const REQUEST_TIMEOUT_MS = Number(process.env.COLLECTOR_REQUEST_TIMEOUT_MS || 15_000);
 
 // §C1-compounding (phase-9 audit): the old fixed 5-minute default didn't scale with
@@ -30,7 +35,10 @@ const LOCK_TTL_MS = JOB_TIMEOUT_MS + 60_000;
  */
 export type ProcessorResult =
   | { skipped: true; storeId: string }
-  | { skipped: false; storeId: string; startedAt: string; durationMs: number; summary: CollectionSummary };
+  | { skipped: false; storeId: string; startedAt: string; durationMs: number; summary: CollectionSummary }
+  /** A C2C marketplace run. Tagged so the admin dashboard can tell it apart from a retail
+   * collection and label it honestly — its counts mean listings seen, not offers priced. */
+  | { skipped: false; marketplace: true; storeId: string; startedAt: string; durationMs: number; marketplaceSummary: MarketplaceSummary };
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -61,6 +69,11 @@ function recordCollectionMetrics(storeId: string, summary: CollectionSummary, du
  */
 export async function processPriceCollectionJob(job: Job<PriceCollectionJobData>, redis: Redis): Promise<ProcessorResult> {
   const { storeId } = job.data;
+  // Marketplace sources share this queue (and its per-store lock, timeout and retry policy) but
+  // deliberately not `runStoreCollection` — they write only `marketplace_listings`, never
+  // `offers`/`price_history`. Branching here keeps that one difference explicit instead of
+  // hiding it behind a shared interface that would make the wrong wiring type-check.
+  if (isMarketplaceSource(storeId)) return processMarketplaceJob(job, redis, storeId);
   const collector = getCollector(storeId);
   const startedAt = new Date();
 
@@ -96,4 +109,42 @@ export async function processPriceCollectionJob(job: Job<PriceCollectionJobData>
   ).catch((error) => logError("worker", `${storeId} failed to release store lock after settling: ${error instanceof Error ? error.message : error}`));
 
   return withTimeout(collectionWork, JOB_TIMEOUT_MS, `${storeId} collection timed out after ${Math.round(JOB_TIMEOUT_MS / 1000)}s`);
+}
+
+async function processMarketplaceJob(job: Job<PriceCollectionJobData>, redis: Redis, sourceId: string): Promise<ProcessorResult> {
+  const collector = getMarketplaceCollector(sourceId);
+  const startedAt = new Date();
+
+  const token = await acquireStoreLock(redis, sourceId, LOCK_TTL_MS);
+  if (!token) {
+    log("worker", `${sourceId} skipped — a collection for this source is already running`);
+    return { skipped: true, storeId: sourceId };
+  }
+
+  // Same lock-release discipline as the retail path above: released when the work actually
+  // settles, never merely when we stop waiting on it.
+  const work = withSpan("collection.job", { "pricenepal.source_id": sourceId, "pricenepal.job_id": job.id ?? "unknown" }, async () => {
+    try {
+      const { summary, durationMs } = await runMarketplaceCollection(collector, { limit: DEFAULT_MARKETPLACE_LISTING_LIMIT });
+      console.log(formatMarketplaceSummary(collector.source.name, summary, durationMs, startedAt));
+      storeCollectionSuccessTotal.add(1, { "pricenepal.store_id": sourceId });
+      storeCollectionDuration.record(durationMs, { "pricenepal.store_id": sourceId });
+      // Only "how many did we see" is comparable with the retail counters. Matched/created/
+      // price-change counters are deliberately not incremented: a listing is never matched to a
+      // canonical product here and never produces a price-history point, so feeding zeros or
+      // fake values into those metrics would misreport both this source and the site totals.
+      productsCollectedTotal.add(summary.discovered, { "pricenepal.store_id": sourceId });
+      return { skipped: false as const, marketplace: true as const, storeId: sourceId, startedAt: startedAt.toISOString(), durationMs, marketplaceSummary: summary };
+    } catch (error) {
+      storeCollectionFailureTotal.add(1, { "pricenepal.store_id": sourceId });
+      throw error;
+    }
+  });
+
+  work.then(
+    () => releaseStoreLock(redis, sourceId, token),
+    () => releaseStoreLock(redis, sourceId, token),
+  ).catch((error) => logError("worker", `${sourceId} failed to release lock after settling: ${error instanceof Error ? error.message : error}`));
+
+  return withTimeout(work, JOB_TIMEOUT_MS, `${sourceId} collection timed out after ${Math.round(JOB_TIMEOUT_MS / 1000)}s`);
 }

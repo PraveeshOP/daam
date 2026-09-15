@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapDatabaseProduct, searchProducts, getCategoryCounts, getStoreCounts, getComparableProducts, supabase } from "@/lib/data";
+import { mapDatabaseProduct, searchProducts, getCategoryCounts, getStoreCounts, getComparableProducts, supabase, marketplaceStore, isMarketplaceStoreSlug, MARKETPLACE_STORE_PREFIX } from "@/lib/data";
 import type { DatabaseProduct } from "@/lib/data";
 
 describe("searchProducts", () => {
@@ -120,5 +120,108 @@ describe("mapDatabaseProduct", () => {
     expect(product.offers[0].price).toBe(89999);
     expect(product.offerStores?.[0].name).toBe("Example Store");
     expect(product.history.map((point) => point.price)).toEqual([94999, 89999]);
+  });
+});
+
+/**
+ * A linked C2C listing is modelled as an `Offer` carrying a `marketplace` marker, which is what
+ * lets it rank against real shop offers everywhere at once. These pin the parts of that decision
+ * that are easy to regress: it must reach the comparison, and it must stay out of the paths that
+ * would mislead a shopper.
+ */
+describe("marketplace listings in the comparison", () => {
+  const row = (overrides: Partial<DatabaseProduct> = {}): DatabaseProduct => ({
+    id: "p1",
+    name: "iPhone 17 256 GB",
+    slug: "iphone-17-256-gb",
+    brand: "Apple",
+    description: null,
+    image_url: null,
+    specifications: null,
+    featured: false,
+    created_at: new Date().toISOString(),
+    categories: { name: "Smartphones", slug: "smartphones" },
+    offers: [{
+      id: "o1", product_id: "p1", store_id: "s1", external_id: null, price: 165499,
+      previous_price: null, availability: "in_stock", product_url: "https://shop.example/x",
+      last_checked: new Date().toISOString(),
+      stores: { id: "s1", name: "ITTI", slug: "itti", logo_url: null, description: null },
+    }],
+    marketplace_listings: [{
+      id: "m1", source: "hamrobazaar", external_id: "ABC", product_id: "p1",
+      title: "Iphone 17 256gb", price: 149999, condition: "brand_new", negotiable: true,
+      listing_url: "https://hamrobazaar.com/detail/ABC",
+      last_seen_at: new Date().toISOString(),
+    }],
+    ...overrides,
+  } as DatabaseProduct);
+
+  it("adds a linked listing to the product's offers so it takes part in ranking", () => {
+    const product = mapDatabaseProduct(row());
+    expect(product.offers).toHaveLength(2);
+    const listing = product.offers.find((offer) => offer.marketplace);
+    expect(listing?.price).toBe(149999);
+    expect(listing?.marketplace?.sourceName).toBe("HamroBazaar");
+    expect(listing?.marketplace?.negotiable).toBe(true);
+  });
+
+  it("links straight to the listing, not through /go/[offerId] — there is no offers row to resolve", () => {
+    const listing = mapDatabaseProduct(row()).offers.find((offer) => offer.marketplace);
+    expect(listing?.productUrl).toBe("https://hamrobazaar.com/detail/ABC");
+    expect(listing?.id.startsWith("marketplace:")).toBe(true);
+  });
+
+  it("gives the source a synthetic store with no affiliate relationship", () => {
+    const store = mapDatabaseProduct(row()).offerStores?.find((item) => item.id === "marketplace:hamrobazaar");
+    expect(store?.name).toBe("HamroBazaar");
+    expect(store?.affiliateEnabled).toBe(false);
+    expect(store?.partnershipStatus).toBe("none");
+  });
+
+  it("marks a listing in stock, so it is not dropped from the in-stock price set", () => {
+    const listing = mapDatabaseProduct(row()).offers.find((offer) => offer.marketplace);
+    expect(listing?.availability).toBe("in_stock");
+  });
+
+  it("never contributes a price-history point — history comes from price_history alone", () => {
+    expect(mapDatabaseProduct(row()).history).toEqual([]);
+  });
+
+  it("leaves a product with no linked listings completely unchanged", () => {
+    const product = mapDatabaseProduct(row({ marketplace_listings: [] }));
+    expect(product.offers).toHaveLength(1);
+    expect(product.offers[0].marketplace).toBeUndefined();
+    expect(product.offerStores?.every((store) => !store.id.startsWith("marketplace:"))).toBe(true);
+  });
+
+  it("tolerates the field being absent entirely (list selects that do not ask for it)", () => {
+    const { marketplace_listings: _omitted, ...withoutField } = row();
+    expect(mapDatabaseProduct(withoutField as DatabaseProduct).offers).toHaveLength(1);
+  });
+});
+
+describe("marketplace sources in the store filter", () => {
+  it("gives a source a prefixed slug the query paths can route on", () => {
+    const store = marketplaceStore("hamrobazaar");
+    expect(store.slug).toBe(`${MARKETPLACE_STORE_PREFIX}hamrobazaar`);
+    expect(store.name).toBe("HamroBazaar");
+    expect(isMarketplaceStoreSlug(store.slug)).toBe(true);
+  });
+
+  /**
+   * The routing this prefix drives is not cosmetic: a marketplace source has no `offers` rows, so
+   * sending its slug down the normal offers->stores lookup returns nothing and the filter silently
+   * shows an empty page. A real shop slug must never be mistaken for one.
+   */
+  it("does not mistake a real shop slug for a marketplace source", () => {
+    for (const slug of ["itti", "evo-store", "mobilemandu", "smartdoko"]) {
+      expect(isMarketplaceStoreSlug(slug)).toBe(false);
+    }
+  });
+
+  it("marks the synthetic store as having no affiliate relationship", () => {
+    const store = marketplaceStore("hamrobazaar");
+    expect(store.affiliateEnabled).toBe(false);
+    expect(store.partnershipStatus).toBe("none");
   });
 });

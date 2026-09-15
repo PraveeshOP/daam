@@ -54,6 +54,12 @@ export default async function ProductPage({
       </main>
     );
   const best = product.lowestPrice;
+  // Price alerts are evaluated against the `offers` table only (lib/alerts/evaluate.ts), so a
+  // marketplace listing can never trigger one. Seeding the form from `best` would therefore offer
+  // a target price that is unreachable by definition whenever a seller advert holds the lowest
+  // slot — the alert would simply never fire. The form gets the lowest *shop* price instead.
+  const retailPrices = product.offers.filter((offer) => !offer.marketplace).map((offer) => offer.price);
+  const lowestRetailPrice = retailPrices.length ? Math.min(...retailPrices) : 0;
   const user = await getCurrentUser();
   const [favoriteIds, existingAlertRow] = await Promise.all([
     user ? getFavoriteProductIds(user.id) : Promise.resolve(new Set<string>()),
@@ -140,7 +146,7 @@ export default async function ProductPage({
             <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
               <p className="text-3xl font-bold text-[#0c8b67]">{product.offers.length ? npr(best) : "Price unavailable"}</p>
               <p className="text-sm font-semibold text-[#66736e]">
-                {product.stores} stores compared
+                {product.stores} price{product.stores === 1 ? "" : "s"} compared
               </p>
             </div>
             {product.offers.length > 0 && product.savings > 0 && (
@@ -178,7 +184,7 @@ export default async function ProductPage({
         <PriceHistory points={product.history} />
         <PriceAlertForm
           productId={product.id}
-          currentLowestPrice={best}
+          currentLowestPrice={lowestRetailPrice || best}
           isAuthenticated={Boolean(user)}
           existingAlert={existingAlert}
         />
