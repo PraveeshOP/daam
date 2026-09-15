@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { findBestMatch, productSlug, externalIdSlugSuffix } from "@/collectors/core/matcher";
 import { isSuspiciousPriceChange } from "@/collectors/core/priceIntegrity";
+import { resolveCanonicalProductId, resolveSlugOwner } from "@/collectors/core/mergeResolution";
 import type { StoreProduct, CollectionSummary } from "@/collectors/evo/types";
 import type { Database } from "@/types/database";
 import { evaluateProductPriceAlerts } from "@/lib/alerts/evaluate";
@@ -38,22 +39,49 @@ export async function importStoreProduct(client: Client, item: StoreProduct, sto
   const isUncertain = mediumConfidence && !highConfidence;
   if (isUncertain) summary.uncertainMatches.push({ name: item.name, candidate: match.candidate!.name, confidence: match.confidence });
   let productId = highConfidence ? match.candidate!.id : undefined;
+  let resolvedViaSlug = false;
   if (!productId) {
-    const { data, error } = await client.from("products").insert({ name: item.name, slug: `${productSlug(item)}-${externalIdSlugSuffix(item.externalId)}`, brand: item.brand || "Unknown", category_id: categoryId, description: item.description || null, image_url: item.imageUrl || null, specifications: item.specifications || {}, featured: false }).select("id").single();
-    if (error || !data) throw new Error(`product insert failed: ${error?.message || "missing product id"}`);
-    productId = data.id;
-    summary.createdProducts += 1;
-    existingProducts.push({ id: productId, name: item.name, brand: item.brand || "Unknown", specifications: item.specifications || {} });
-    // Phase-6 hook: persist the "this might actually be the same product" signal (previously
-    // only logged for the duration of one collection run) so an admin can review it in
-    // /admin/matches instead of a duplicate product silently existing forever.
-    if (isUncertain && match.candidate) {
-      await recordMatchCandidate(client, { newProductId: productId, candidateProductId: match.candidate.id, storeId, confidence: match.confidence, reasons: match.reasons });
+    const slug = `${productSlug(item)}-${externalIdSlugSuffix(item.externalId)}`;
+    // §slug-deadlock: the slug may already be held by a product this item IS — most often one
+    // retired by an accepted admin match, whose offer was deleted so the external_id lookup above
+    // could not find it. Inserting would fail on `products_slug_key` and drop the item silently,
+    // every run, forever. See collectors/core/mergeResolution.ts for the full chain.
+    const slugOwner = await resolveSlugOwner(client, slug);
+    if (slugOwner) {
+      productId = await resolveCanonicalProductId(client, slugOwner);
+      resolvedViaSlug = true;
+      summary.matchedProducts += 1;
+    } else {
+      const { data, error } = await client.from("products").insert({ name: item.name, slug, brand: item.brand || "Unknown", category_id: categoryId, description: item.description || null, image_url: item.imageUrl || null, specifications: item.specifications || {}, featured: false }).select("id").single();
+      if (error || !data) throw new Error(`product insert failed: ${error?.message || "missing product id"}`);
+      productId = data.id;
+      summary.createdProducts += 1;
+      existingProducts.push({ id: productId, name: item.name, brand: item.brand || "Unknown", specifications: item.specifications || {} });
+      // Phase-6 hook: persist the "this might actually be the same product" signal (previously
+      // only logged for the duration of one collection run) so an admin can review it in
+      // /admin/matches instead of a duplicate product silently existing forever.
+      if (isUncertain && match.candidate) {
+        await recordMatchCandidate(client, { newProductId: productId, candidateProductId: match.candidate.id, storeId, confidence: match.confidence, reasons: match.reasons });
+      }
     }
   } else {
     const { error } = await client.from("products").update({ image_url: item.imageUrl || undefined, description: item.description || undefined, updated_at: new Date().toISOString() }).eq("id", productId);
     if (error) throw new Error(`product update failed: ${error.message}`);
     summary.matchedProducts += 1;
+  }
+
+  /*
+   * A slug-resolved item is one an admin already decided is the same product as something else.
+   * If that product already carries an offer from this store under a *different* externalId, the
+   * two store listings were merged into one product and `offers` can only hold one of them
+   * (`unique(product_id, store_id)`). Writing anyway would make the two listings overwrite each
+   * other's price on alternate runs — flip-flopping the stored price and spraying meaningless
+   * points into price_history. The already-represented listing wins and this one is skipped,
+   * which is stable across runs rather than merely non-erroring.
+   */
+  if (resolvedViaSlug) {
+    const { data: rival } = await client.from("offers").select("id, external_id").eq("product_id", productId).eq("store_id", storeId).maybeSingle();
+    if (rival && rival.external_id !== (item.externalId || null)) return;
   }
 
   // §C2 (phase-9 audit): `price_history` is the source of truth for "did the price actually
