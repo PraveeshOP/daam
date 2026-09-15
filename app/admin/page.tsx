@@ -7,7 +7,7 @@ import { getDataQualityIssues } from "@/lib/admin/dataQuality";
 import { listCollectionJobs } from "@/lib/admin/collections";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 
-export const metadata: Metadata = { title: "Dashboard — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Dashboard — daam Admin" };
 
 const npr = (value: number) => `NPR ${Math.round(value).toLocaleString("en-IN")}`;
 const timeAgo = (iso: string) => {

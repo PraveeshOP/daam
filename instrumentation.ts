@@ -10,5 +10,5 @@ import { registerOTel } from "@vercel/otel";
  * The worker is a separate Node process and isn't covered by this file — see lib/otel/worker.ts.
  */
 export function register() {
-  registerOTel({ serviceName: "pricenepal-web" });
+  registerOTel({ serviceName: "daam-web" });
 }

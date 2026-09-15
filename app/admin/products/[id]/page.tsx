@@ -8,7 +8,7 @@ import { ConfirmAction } from "@/components/admin/ConfirmAction";
 import { ProductEditForm } from "@/components/admin/ProductEditForm";
 import { setProductStatusAction } from "@/app/admin/actions/products";
 
-export const metadata: Metadata = { title: "Product — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Product — daam Admin" };
 
 const npr = (value: number) => `NPR ${Math.round(value).toLocaleString("en-IN")}`;
 

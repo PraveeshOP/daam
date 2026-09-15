@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { listAuditLog } from "@/lib/admin/auditLog";
 import { Pagination } from "@/components/admin/Pagination";
 
-export const metadata: Metadata = { title: "Audit Log — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Audit Log — daam Admin" };
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

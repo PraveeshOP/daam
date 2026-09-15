@@ -4,7 +4,7 @@ import { ShieldAlert } from "lucide-react";
 import { getAdminSession } from "@/lib/admin/auth";
 import { AdminSidebar, ADMIN_NAV } from "@/components/admin/AdminSidebar";
 
-export const metadata: Metadata = { title: "PriceNepal Admin" };
+export const metadata: Metadata = { title: "daam Admin" };
 
 /**
  * The one enforcement point every /admin/* page renders through — see lib/admin/auth.ts for why
@@ -39,7 +39,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             {session.email} does not have administrator access. If you believe this is a mistake, contact an existing administrator.
           </p>
           <Link href="/" className="mt-7 inline-flex rounded-[3px] border border-[#d6dfda] px-5 py-3 text-sm font-bold hover:border-[#0c8b67] hover:text-[#0c8b67]">
-            Back to PriceNepal
+            Back to daam
           </Link>
         </div>
       </main>
@@ -55,7 +55,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
       <div className="border-b border-[#e3e9e5] bg-[#17221f] px-4 py-3 lg:hidden">
         <p className="mb-2 text-sm font-bold text-white">
-          PriceNepal <span className="text-[#ef745f]">Admin</span>
+          daam <span className="text-[#ef745f]">Admin</span>
         </p>
         <nav className="flex gap-4 overflow-x-auto text-sm font-semibold text-[#cfd8d3]">
           {ADMIN_NAV.map((item) => (

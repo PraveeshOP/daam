@@ -51,7 +51,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 }
 
 function recordCollectionMetrics(storeId: string, summary: CollectionSummary, durationMs: number) {
-  const attributes = { "pricenepal.store_id": storeId };
+  const attributes = { "daam.store_id": storeId };
   storeCollectionSuccessTotal.add(1, attributes);
   storeCollectionDuration.record(durationMs, attributes);
   productsCollectedTotal.add(summary.discovered, attributes);
@@ -91,14 +91,14 @@ export async function processPriceCollectionJob(job: Job<PriceCollectionJobData>
   // this lock exists to prevent. So the lock is released when the real work actually finishes
   // (success or genuine failure), never when we merely stop waiting for it; `LOCK_TTL_MS`
   // (job timeout + 60s margin) is the backstop if the abandoned run somehow never settles.
-  const collectionWork = withSpan("collection.job", { "pricenepal.store_id": storeId, "pricenepal.job_id": job.id ?? "unknown" }, async () => {
+  const collectionWork = withSpan("collection.job", { "daam.store_id": storeId, "daam.job_id": job.id ?? "unknown" }, async () => {
     try {
       const { summary, durationMs } = await runStoreCollection(collector, { limit: DEFAULT_PRODUCT_LIMIT });
       console.log(formatSummary(collector.store.name, summary, durationMs, startedAt));
       recordCollectionMetrics(storeId, summary, durationMs);
       return { skipped: false as const, storeId, startedAt: startedAt.toISOString(), durationMs, summary };
     } catch (error) {
-      storeCollectionFailureTotal.add(1, { "pricenepal.store_id": storeId });
+      storeCollectionFailureTotal.add(1, { "daam.store_id": storeId });
       throw error;
     }
   });
@@ -123,20 +123,20 @@ async function processMarketplaceJob(job: Job<PriceCollectionJobData>, redis: Re
 
   // Same lock-release discipline as the retail path above: released when the work actually
   // settles, never merely when we stop waiting on it.
-  const work = withSpan("collection.job", { "pricenepal.source_id": sourceId, "pricenepal.job_id": job.id ?? "unknown" }, async () => {
+  const work = withSpan("collection.job", { "daam.source_id": sourceId, "daam.job_id": job.id ?? "unknown" }, async () => {
     try {
       const { summary, durationMs } = await runMarketplaceCollection(collector, { limit: DEFAULT_MARKETPLACE_LISTING_LIMIT });
       console.log(formatMarketplaceSummary(collector.source.name, summary, durationMs, startedAt));
-      storeCollectionSuccessTotal.add(1, { "pricenepal.store_id": sourceId });
-      storeCollectionDuration.record(durationMs, { "pricenepal.store_id": sourceId });
+      storeCollectionSuccessTotal.add(1, { "daam.store_id": sourceId });
+      storeCollectionDuration.record(durationMs, { "daam.store_id": sourceId });
       // Only "how many did we see" is comparable with the retail counters. Matched/created/
       // price-change counters are deliberately not incremented: a listing is never matched to a
       // canonical product here and never produces a price-history point, so feeding zeros or
       // fake values into those metrics would misreport both this source and the site totals.
-      productsCollectedTotal.add(summary.discovered, { "pricenepal.store_id": sourceId });
+      productsCollectedTotal.add(summary.discovered, { "daam.store_id": sourceId });
       return { skipped: false as const, marketplace: true as const, storeId: sourceId, startedAt: startedAt.toISOString(), durationMs, marketplaceSummary: summary };
     } catch (error) {
-      storeCollectionFailureTotal.add(1, { "pricenepal.store_id": sourceId });
+      storeCollectionFailureTotal.add(1, { "daam.store_id": sourceId });
       throw error;
     }
   });

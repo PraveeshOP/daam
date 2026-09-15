@@ -5,7 +5,7 @@ import { metrics } from "@opentelemetry/api";
  * just these. Attributes (store id, queue name, ...) are passed at each `.add()`/`.record()`
  * call site, not baked into the instrument itself.
  */
-const meter = metrics.getMeter("pricenepal-worker");
+const meter = metrics.getMeter("daam-worker");
 
 export const storeCollectionSuccessTotal = meter.createCounter("store_collection_success_total", {
   description: "Store collection jobs that completed without the job itself failing (per-product errors don't count).",

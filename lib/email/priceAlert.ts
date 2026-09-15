@@ -25,7 +25,7 @@ export async function sendPriceAlertEmail(input: PriceAlertEmailInput) {
     `Your target: ${target}`,
     `Current lowest price: ${current}`,
     "",
-    "You can compare the available stores on PriceNepal.",
+    "You can compare the available stores on daam.",
     input.productUrl,
   ].join("\n");
 
@@ -51,7 +51,7 @@ export async function sendPriceAlertEmail(input: PriceAlertEmailInput) {
         View product
       </a>
       <p style="margin-top: 28px; font-size: 12px; color: #66736e;">
-        You can compare the available stores on PriceNepal from the link above.
+        You can compare the available stores on daam from the link above.
       </p>
     </div>
   `.trim();

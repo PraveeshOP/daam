@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { getDataQualityIssues, getDataQualityTrends, recordDataQualitySnapshots } from "@/lib/admin/dataQuality";
 
-export const metadata: Metadata = { title: "Data Quality — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Data Quality — daam Admin" };
 
 const TREND_LABEL: Record<string, string> = { increasing: "↑ Increasing", decreasing: "↓ Decreasing", stable: "→ Stable", new: "New" };
 const TREND_CLASS: Record<string, string> = {

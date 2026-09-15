@@ -1,4 +1,4 @@
-export const COLLECTOR_USER_AGENT = "PriceNepalCatalogCollector/0.1 (+manual low-volume catalog import)";
+export const COLLECTOR_USER_AGENT = "DaamCatalogCollector/0.1 (+manual low-volume catalog import)";
 
 const DEFAULT_TIMEOUT_MS = Number(process.env.COLLECTOR_REQUEST_TIMEOUT_MS || 15_000);
 

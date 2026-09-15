@@ -8,7 +8,7 @@ import { acceptMatchAction, rejectMatchAction } from "@/app/admin/actions/matche
 import { ACCEPT_ALL_BATCH_SIZE } from "@/lib/admin/matchBatch";
 import { AcceptAllMatches } from "@/components/admin/AcceptAllMatches";
 
-export const metadata: Metadata = { title: "Product Matches — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Product Matches — daam Admin" };
 
 const TABS = [
   { value: "pending", label: "Pending review" },

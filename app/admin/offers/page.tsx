@@ -8,7 +8,7 @@ import { Pagination } from "@/components/admin/Pagination";
 import { AffiliateUrlEditor } from "@/components/admin/AffiliateUrlEditor";
 import { setOfferDisabledAction, setOfferAvailabilityAction } from "@/app/admin/actions/offers";
 
-export const metadata: Metadata = { title: "Offers — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Offers — daam Admin" };
 
 const npr = (value: number) => `NPR ${Math.round(value).toLocaleString("en-IN")}`;
 const FILTERS: { value: OfferFilter; label: string }[] = [

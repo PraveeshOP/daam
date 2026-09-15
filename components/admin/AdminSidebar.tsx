@@ -31,7 +31,7 @@ export function AdminSidebar() {
     <div className="flex h-full flex-col bg-[#17221f] text-[#cfd8d3]">
       <div className="px-5 pt-6 pb-4">
         <p className="text-lg font-bold text-white">
-          PriceNepal <span className="text-[#ef745f]">Admin</span>
+          daam <span className="text-[#ef745f]">Admin</span>
         </p>
       </div>
       <nav className="flex-1 space-y-0.5 px-3">
@@ -47,7 +47,7 @@ export function AdminSidebar() {
       </nav>
       <div className="border-t border-white/10 px-3 py-4">
         <Link href="/" className="flex items-center gap-3 rounded-[4px] px-3 py-2.5 text-sm font-semibold transition hover:bg-white/10 hover:text-white">
-          <ArrowLeft size={16} /> Back to PriceNepal
+          <ArrowLeft size={16} /> Back to daam
         </Link>
         <form action={logoutAction}>
           <button type="submit" className="flex w-full items-center gap-3 rounded-[4px] px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-white/10 hover:text-white">

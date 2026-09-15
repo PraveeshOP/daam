@@ -2,7 +2,7 @@
 
 ## What this is, and isn't
 
-PriceNepal can earn a commission from some stores when a visitor clicks through and buys — but
+daam can earn a commission from some stores when a visitor clicks through and buys — but
 the site still compares stores purely on price. Nothing in this phase changes what's shown as
 the cheapest offer; it only changes where "Visit store" sends the browser once a visitor has
 already decided which store to check out.
@@ -100,7 +100,7 @@ higher price never beats a cheaper store with no affiliate program at all.
 - **`/admin/analytics`** — an "Affiliate performance" section: total/affiliate/direct outbound
   clicks, broken down by store and by product, reusing the existing `store_click` event and the
   same `analytics_top_stores`/`analytics_top_products` RPCs the rest of analytics already uses —
-  no separate tracking system. Purchases/revenue are shown as "Not available": PriceNepal only
+  no separate tracking system. Purchases/revenue are shown as "Not available": daam only
   ever observes the outbound click, never whether it became a sale, and the dashboard says so
   rather than inventing a number.
 

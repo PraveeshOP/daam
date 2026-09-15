@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { RunCollectionButton } from "@/components/admin/RunCollectionButton";
 import { StorePartnershipForm } from "@/components/admin/StorePartnershipForm";
 
-export const metadata: Metadata = { title: "Store — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Store — daam Admin" };
 
 const formatDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-NP", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }) : "—");
 const formatDuration = (ms: number | null) => {

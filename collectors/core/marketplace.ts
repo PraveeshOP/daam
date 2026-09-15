@@ -75,7 +75,7 @@ function toRow(source: string, listing: MarketplaceListing, seenAt: string) {
 export async function runMarketplaceCollection(collector: MarketplaceCollector, options: MarketplaceRunOptions = {}) {
   const started = Date.now();
   const summary = emptySummary();
-  const result = await withSpan("marketplace.collect", { "pricenepal.source_id": collector.sourceId }, () => collector.collect({ limit: options.limit }));
+  const result = await withSpan("marketplace.collect", { "daam.source_id": collector.sourceId }, () => collector.collect({ limit: options.limit }));
   summary.discovered = result.discovered;
   summary.skipped = result.skipped;
   summary.errors.push(...result.errors);
@@ -86,7 +86,7 @@ export async function runMarketplaceCollection(collector: MarketplaceCollector, 
   const seenAt = new Date().toISOString();
   const existing = await findExistingIds(client, collector.sourceId, result.listings.map((listing) => listing.externalId));
 
-  await withSpan("marketplace.import", { "pricenepal.source_id": collector.sourceId, "pricenepal.listing_count": result.listings.length }, async () => {
+  await withSpan("marketplace.import", { "daam.source_id": collector.sourceId, "daam.listing_count": result.listings.length }, async () => {
     for (const listing of result.listings) {
       const isNew = !existing.has(listing.externalId);
       // `first_seen_at` is set only on insert and never touched again, so it keeps meaning
@@ -117,7 +117,7 @@ export async function runMarketplaceCollection(collector: MarketplaceCollector, 
 export function formatMarketplaceSummary(sourceName: string, summary: MarketplaceSummary, durationMs: number, startedAt: Date) {
   const seconds = Math.round(durationMs / 1000);
   const lines = [
-    "PriceNepal Marketplace Collection",
+    "daam Marketplace Collection",
     "",
     `Source: ${sourceName}`,
     `Started: ${startedAt.toLocaleTimeString("en-NP", { hour: "2-digit", minute: "2-digit" })}`,

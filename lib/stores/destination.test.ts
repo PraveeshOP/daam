@@ -61,15 +61,15 @@ describe("getStoreDestination", () => {
   it("applies store tracking params to the affiliate URL", () => {
     const result = getStoreDestination(
       { productUrl: "https://store.example/p/1", affiliateUrl: "https://aff.example/click" },
-      { ...activeAffiliateStore, trackingParams: { ref: "pricenepal", utm_source: "pricenepal" } },
+      { ...activeAffiliateStore, trackingParams: { ref: "daam", utm_source: "daam" } },
     );
-    expect(result.url).toBe("https://aff.example/click?ref=pricenepal&utm_source=pricenepal");
+    expect(result.url).toBe("https://aff.example/click?ref=daam&utm_source=daam");
   });
 
   it("never overwrites a query param the affiliate URL already has", () => {
     const result = getStoreDestination(
       { productUrl: "https://store.example/p/1", affiliateUrl: "https://aff.example/click?ref=existing" },
-      { ...activeAffiliateStore, trackingParams: { ref: "pricenepal" } },
+      { ...activeAffiliateStore, trackingParams: { ref: "daam" } },
     );
     expect(result.url).toBe("https://aff.example/click?ref=existing");
   });

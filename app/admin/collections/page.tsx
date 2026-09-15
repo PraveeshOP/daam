@@ -3,7 +3,7 @@ import { listCollectionJobs } from "@/lib/admin/collections";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Pagination } from "@/components/admin/Pagination";
 
-export const metadata: Metadata = { title: "Collections — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Collections — daam Admin" };
 
 const PAGE_SIZE = 25;
 const formatDateTime = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-NP", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }) : "—");

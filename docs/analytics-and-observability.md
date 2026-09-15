@@ -1,7 +1,7 @@
 # Analytics and observability (phase 7)
 
 Two separate concerns, kept separate on purpose (spec §2): **product analytics** (how people use
-PriceNepal — search, view, click, favorite, alert) lives in Supabase (`analytics_events`) and is
+daam — search, view, click, favorite, alert) lives in Supabase (`analytics_events`) and is
 readable only by admins. **System observability** (is the pipeline actually working — collection
 duration, queue depth, failures) is OpenTelemetry traces/metrics plus the existing BullMQ/Supabase
 data the admin dashboard already reads (phase 6) — nothing here duplicates that.

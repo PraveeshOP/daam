@@ -5,7 +5,7 @@ import { categories } from "@/lib/data";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { Pagination } from "@/components/admin/Pagination";
 
-export const metadata: Metadata = { title: "Products — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Products — daam Admin" };
 
 const npr = (value: number) => `NPR ${Math.round(value).toLocaleString("en-IN")}`;
 

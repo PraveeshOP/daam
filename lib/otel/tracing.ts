@@ -1,6 +1,6 @@
 import { trace, SpanStatusCode, type Attributes } from "@opentelemetry/api";
 
-const tracer = trace.getTracer("pricenepal-worker");
+const tracer = trace.getTracer("daam-worker");
 
 /**
  * Wraps `fn` in a span, recording the outcome (error status + message on throw) and re-throwing

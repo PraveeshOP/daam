@@ -15,7 +15,7 @@ import {
 } from "@/lib/admin/analytics";
 import { SimpleBarChart } from "@/components/admin/SimpleBarChart";
 
-export const metadata: Metadata = { title: "Analytics — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Analytics — daam Admin" };
 
 const RANGES: TimeRange[] = ["today", "7d", "30d", "90d"];
 const formatCount = (value: number) => value.toLocaleString("en-IN");
@@ -46,7 +46,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">Analytics</h1>
-          <p className="mt-2 text-[#66736e]">How people use PriceNepal.</p>
+          <p className="mt-2 text-[#66736e]">How people use daam.</p>
         </div>
         <div className="flex gap-2">
           {RANGES.map((item) => (
@@ -143,7 +143,7 @@ export default async function AdminAnalyticsPage({ searchParams }: { searchParam
           <TopList title="Outbound clicks by product" rows={outbound.byProduct.map((row) => ({ label: row.name, count: row.count, href: row.slug ? `/product/${row.slug}` : undefined }))} />
         </div>
         <p className="mt-3 rounded-[3px] border border-dashed border-[#d6dfda] px-3 py-2.5 text-xs font-semibold text-[#88948e]">
-          Purchases / revenue: Not available. PriceNepal only ever observes the outbound click — no store partner currently reports back whether it became a sale, so no conversion or revenue figure is shown here.
+          Purchases / revenue: Not available. daam only ever observes the outbound click — no store partner currently reports back whether it became a sale, so no conversion or revenue figure is shown here.
         </p>
       </section>
 

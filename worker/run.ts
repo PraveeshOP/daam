@@ -40,11 +40,11 @@ export async function runWorker() {
   priceWorker.on("active", (job) => log("job", `${job.data.storeId} active (attempt ${job.attemptsMade + 1})`));
   priceWorker.on("completed", (job, result) => {
     log("job", `${job.data.storeId} completed${result?.skipped ? " (skipped: already running)" : ""}`);
-    bullmqJobsCompletedTotal.add(1, { "pricenepal.queue": PRICE_COLLECTION_QUEUE });
+    bullmqJobsCompletedTotal.add(1, { "daam.queue": PRICE_COLLECTION_QUEUE });
   });
   priceWorker.on("failed", (job, error) => {
     logError("job", `${job?.data.storeId ?? "unknown"} failed: ${error.message}`);
-    bullmqJobsFailedTotal.add(1, { "pricenepal.queue": PRICE_COLLECTION_QUEUE });
+    bullmqJobsFailedTotal.add(1, { "daam.queue": PRICE_COLLECTION_QUEUE });
   });
   priceWorker.on("error", (error) => logError("worker", error.message));
 
@@ -60,11 +60,11 @@ export async function runWorker() {
   notificationWorker.on("active", (job) => log("notification-job", `alert ${job.data.alertId} active (attempt ${job.attemptsMade + 1})`));
   notificationWorker.on("completed", (job) => {
     log("notification-job", `alert ${job.data.alertId} completed`);
-    bullmqJobsCompletedTotal.add(1, { "pricenepal.queue": NOTIFICATIONS_QUEUE });
+    bullmqJobsCompletedTotal.add(1, { "daam.queue": NOTIFICATIONS_QUEUE });
   });
   notificationWorker.on("failed", (job, error) => {
     logError("notification-job", `alert ${job?.data.alertId ?? "unknown"} failed: ${error.message}`);
-    bullmqJobsFailedTotal.add(1, { "pricenepal.queue": NOTIFICATIONS_QUEUE });
+    bullmqJobsFailedTotal.add(1, { "daam.queue": NOTIFICATIONS_QUEUE });
     notificationFailedTotal.add(1);
     if (!job) return;
     const exhausted = job.attemptsMade >= (job.opts.attempts ?? 1);

@@ -5,7 +5,7 @@ import { getQueueStats, getSystemAlerts, listCollectionJobs, summarizeErrors } f
 import { listStoreOverviews } from "@/lib/admin/stores";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 
-export const metadata: Metadata = { title: "Observability — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Observability — daam Admin" };
 
 const formatDuration = (ms: number | null) => {
   if (ms === null) return "—";
@@ -26,7 +26,7 @@ export default async function AdminObservabilityPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold">Observability</h1>
-      <p className="mt-2 text-[#66736e]">Is PriceNepal working correctly right now?</p>
+      <p className="mt-2 text-[#66736e]">Is daam working correctly right now?</p>
 
       {alerts.length > 0 && (
         <section className="mt-6 rounded-[4px] border border-[#f6c9c2] bg-[#fdecea] p-5">

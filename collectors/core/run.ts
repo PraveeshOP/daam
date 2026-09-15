@@ -39,7 +39,7 @@ export async function runStoreCollection(collector: StoreCollector, options: Run
   const summary = emptySummary();
   // These two spans are no-ops unless a tracer provider is registered (see lib/otel/worker.ts),
   // so they're safe to leave in place for the manual `npm run collect:*` CLI scripts too.
-  const result = await withSpan("collection.collect", { "pricenepal.store_id": collector.storeId }, () => collector.collect({ limit: options.limit }));
+  const result = await withSpan("collection.collect", { "daam.store_id": collector.storeId }, () => collector.collect({ limit: options.limit }));
   summary.discovered = result.discovered;
   summary.errors.push(...result.errors);
 
@@ -62,10 +62,10 @@ export async function runStoreCollection(collector: StoreCollector, options: Run
   if (candidateError) throw new Error(`candidate lookup failed: ${candidateError.message}`);
   const existingProducts = (existingRows || []) as ExistingProduct[];
 
-  await withSpan("collection.import", { "pricenepal.store_id": collector.storeId, "pricenepal.product_count": result.products.length }, async () => {
+  await withSpan("collection.import", { "daam.store_id": collector.storeId, "daam.product_count": result.products.length }, async () => {
     for (const product of result.products) {
       try {
-        await withSpan("collection.import_product", { "pricenepal.store_id": collector.storeId, "pricenepal.product_name": product.name }, () =>
+        await withSpan("collection.import_product", { "daam.store_id": collector.storeId, "daam.product_name": product.name }, () =>
           importStoreProduct(client, product, storeId, categoryId, summary, existingProducts),
         );
         // A newly created product this run is itself a valid match candidate for the *next*
@@ -89,7 +89,7 @@ function formatDuration(durationMs: number) {
 /** Matches the "Collection Summary" shape called for in the phase-4 spec. */
 export function formatSummary(storeName: string, summary: CollectionSummary, durationMs: number, startedAt: Date) {
   const lines = [
-    "PriceNepal Store Collection",
+    "daam Store Collection",
     "",
     `Store: ${storeName}`,
     `Started: ${startedAt.toLocaleTimeString("en-NP", { hour: "2-digit", minute: "2-digit" })}`,

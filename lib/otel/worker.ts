@@ -15,7 +15,7 @@ let sdk: NodeSDK | null = null;
 export function startWorkerTelemetry(): void {
   if (sdk) return;
   sdk = new NodeSDK({
-    resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "pricenepal-worker" }),
+    resource: resourceFromAttributes({ [ATTR_SERVICE_NAME]: "daam-worker" }),
     traceExporter: createTraceExporter(),
     metricReaders: [createMetricReader()],
   });

@@ -4,7 +4,7 @@ import { listStoreOverviews } from "@/lib/admin/stores";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { RunCollectionButton } from "@/components/admin/RunCollectionButton";
 
-export const metadata: Metadata = { title: "Stores — PriceNepal Admin" };
+export const metadata: Metadata = { title: "Stores — daam Admin" };
 
 const timeOf = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-NP", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }) : "Never");
 
