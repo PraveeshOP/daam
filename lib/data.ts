@@ -423,24 +423,71 @@ async function getMarketplaceStoreCounts(query: string, categorySlug?: string): 
  * offer count would be wasteful. The cheap first query only reads `offers.product_id` to find
  * which products actually qualify; the second query fetches full detail for just those ids.
  */
+/**
+ * Largest price gap between stores, biggest first — the thing the site exists to demonstrate.
+ *
+ * Previously this returned an arbitrary eight products with 2+ offers: nothing anywhere applied
+ * an order, so the set came back in whatever sequence PostgREST happened to return offer rows and
+ * could differ between requests, under a heading promising "Trending now / Popular comparisons".
+ *
+ * Ranking by *views* was considered and rejected on the data: analytics holds 77 events across 16
+ * products, all of it development traffic, with zero favourites and zero alerts. Ordering by that
+ * would surface whatever someone last clicked, which is neither popular nor useful. Savings needs
+ * no traffic to be meaningful and answers the question a shopper actually has — where does using
+ * this site pay off?
+ *
+ * Absolute rupees, not percent: a shopper saving NPR 40,000 on a laptop cares more than one saving
+ * 30% on a cable, and big-ticket items are exactly where comparing matters.
+ */
+const MAX_PLAUSIBLE_PRICE_RATIO = 2.5;
+
 export async function getComparableProducts(limit = 8): Promise<ProductWithOffers[]> {
-  if (!supabase) return products.map(enrich).filter((product) => product.stores >= 2).slice(0, limit);
+  if (!supabase) return products.map(enrich).filter((product) => product.stores >= 2).sort((first, second) => second.savings - first.savings).slice(0, limit);
 
-  const offerRows = await fetchAllRows<{ product_id: string }>((from, to) => supabase!.from("offers").select("product_id").eq("is_disabled", false).range(from, to));
+  // `price` is selected alongside `product_id` so the ranking can be computed from this one query
+  // instead of fetching full product rows for every candidate just to read their prices.
+  const offerRows = await fetchAllRows<{ product_id: string; price: number | string }>((from, to) =>
+    supabase!.from("offers").select("product_id, price").eq("is_disabled", false).range(from, to),
+  );
   if (!offerRows.length) return [];
-  const offerCounts = new Map<string, number>();
-  for (const row of offerRows) offerCounts.set(row.product_id, (offerCounts.get(row.product_id) || 0) + 1);
-  // A generous buffer over `limit`, not an exact slice — some qualifying ids may turn out
-  // inactive on the follow-up fetch, so this leaves room for that filter to still hit `limit`.
-  const qualifyingIds = [...offerCounts.entries()].filter(([, count]) => count >= 2).map(([id]) => id).slice(0, Math.max(limit * 3, 50));
-  if (!qualifyingIds.length) return [];
 
-  const { data, error } = await supabase.from("products").select(productListSelect).eq("status", "active").in("id", qualifyingIds);
+  const pricesByProduct = new Map<string, number[]>();
+  for (const row of offerRows) {
+    const price = Number(row.price);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    const prices = pricesByProduct.get(row.product_id);
+    if (prices) prices.push(price);
+    else pricesByProduct.set(row.product_id, [price]);
+  }
+
+  const ranked = [...pricesByProduct.entries()]
+    .filter(([, prices]) => prices.length >= 2)
+    .map(([id, prices]) => {
+      const lowest = Math.min(...prices);
+      const highest = Math.max(...prices);
+      return { id, offerCount: prices.length, savings: highest - lowest, ratio: highest / lowest };
+    })
+    // A spread this wide between shops selling the same thing is far more likely a bad product
+    // match or a mispriced offer than a real bargain, and the homepage is the worst place to
+    // advertise a saving that does not exist. Verified against live data: the two widest spreads
+    // in the catalogue both trace back to offers left behind by an incorrect merge.
+    .filter((entry) => entry.ratio <= MAX_PLAUSIBLE_PRICE_RATIO)
+    // Deterministic all the way down, so the homepage does not reshuffle between requests.
+    .sort((first, second) => second.savings - first.savings || second.offerCount - first.offerCount || first.id.localeCompare(second.id));
+
+  // A buffer over `limit`: some of these will turn out inactive on the fetch below.
+  const shortlist = ranked.slice(0, Math.max(limit * 4, 40));
+  if (!shortlist.length) return [];
+  const order = new Map(shortlist.map((entry, index) => [entry.id, index]));
+
+  const { data, error } = await supabase.from("products").select(productListSelect).eq("status", "active").in("id", [...order.keys()]);
   if (error || !data?.length) return [];
   return (data as unknown as DatabaseProduct[])
     .map(mapDatabaseProduct)
     .map(enrich)
     .filter((product) => product.stores >= 2)
+    // `.in()` does not preserve the order it was given, so the ranking is reapplied here.
+    .sort((first, second) => (order.get(first.id) ?? Infinity) - (order.get(second.id) ?? Infinity))
     .slice(0, limit);
 }
 

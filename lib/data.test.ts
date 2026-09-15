@@ -225,3 +225,22 @@ describe("marketplace sources in the store filter", () => {
     expect(store.partnershipStatus).toBe("none");
   });
 });
+
+describe("getComparableProducts ordering (seed-data fallback)", () => {
+  it("returns the widest price gaps first, not an arbitrary set", async () => {
+    expect(supabase).toBeNull();
+    const results = await getComparableProducts(8);
+    const savings = results.map((product) => product.savings);
+    expect(savings).toEqual([...savings].sort((first, second) => second - first));
+  });
+
+  it("only includes products actually sold by two or more stores", async () => {
+    for (const product of await getComparableProducts(8)) expect(product.stores).toBeGreaterThanOrEqual(2);
+  });
+
+  it("is stable across calls, so the homepage does not reshuffle between requests", async () => {
+    const first = (await getComparableProducts(8)).map((product) => product.id);
+    const second = (await getComparableProducts(8)).map((product) => product.id);
+    expect(first).toEqual(second);
+  });
+});

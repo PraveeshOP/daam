@@ -99,11 +99,14 @@ export default async function HomePage() {
         <div className="container">
           <div className="mb-7 flex items-end justify-between">
             <div>
+              {/* Named for what the list actually is. It is ranked by the price gap between
+                  stores (lib/data.ts getComparableProducts) -- not by traffic, which this site
+                  does not yet have enough of to rank on honestly. */}
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#ef745f]">
-                Trending now
+                Biggest savings
               </p>
               <h2 className="text-3xl font-bold sm:text-4xl">
-                Popular comparisons
+                Where comparing pays off
               </h2>
             </div>
             <Link
