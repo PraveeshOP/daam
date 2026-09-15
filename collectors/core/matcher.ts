@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { hasDiscriminatorConflict } from "@/collectors/core/discriminators";
 import type { StoreProduct } from "@/collectors/evo/types";
 
 export type NormalizedAttributes = {
@@ -138,6 +139,12 @@ export function scoreMatch(source: NormalizedAttributes, candidate: NormalizedAt
 export function findBestMatch(sourceProduct: StoreProduct, candidates: MatchCandidate[]): MatchResult {
   const source = normalizeStoreProduct(sourceProduct);
   const ranked = candidates.map((candidate) => {
+    // Gate on facts before scoring: if the two names state different capacities, processors,
+    // generations, screen sizes or part numbers, they are different products however much else
+    // they share. See collectors/core/discriminators.ts for why confidence cannot do this job.
+    if (hasDiscriminatorConflict(sourceProduct.name, candidate.name)) {
+      return { candidate, confidence: 0, reasons: [] as string[] };
+    }
     const result = scoreMatch(source, normalizeStoreProduct({ name: candidate.name, brand: candidate.brand, price: 1, currency: "NPR", productUrl: "", specifications: Object.fromEntries(Object.entries(candidate.specifications || {}).map(([key, value]) => [key, String(value)])) }));
     return { ...result, candidate };
   }).sort((first, second) => second.confidence - first.confidence);
