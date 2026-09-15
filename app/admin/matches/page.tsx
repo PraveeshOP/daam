@@ -5,6 +5,8 @@ import { StatusBadge } from "@/components/admin/StatusBadge";
 import { ConfirmAction } from "@/components/admin/ConfirmAction";
 import { Pagination } from "@/components/admin/Pagination";
 import { acceptMatchAction, rejectMatchAction } from "@/app/admin/actions/matches";
+import { ACCEPT_ALL_BATCH_SIZE } from "@/lib/admin/matchBatch";
+import { AcceptAllMatches } from "@/components/admin/AcceptAllMatches";
 
 export const metadata: Metadata = { title: "Product Matches — PriceNepal Admin" };
 
@@ -38,6 +40,8 @@ export default async function AdminMatchesPage({ searchParams }: { searchParams:
             {tab.label}
           </Link>
         ))}
+        {/* Only on the pending tab — there is nothing to bulk-accept on the other two. */}
+        {status === "pending" && <AcceptAllMatches pendingTotal={total} batchSize={ACCEPT_ALL_BATCH_SIZE} />}
       </div>
 
       {items.length === 0 ? (
