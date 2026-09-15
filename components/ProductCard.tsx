@@ -61,7 +61,7 @@ export function ProductCard({
           </p>
           <div className="mt-2 flex items-center justify-between text-xs text-[#66736e]">
             <span className="flex items-center gap-1">
-              <Store size={13} /> {product.stores} stores
+              <Store size={13} /> {product.stores} price{product.stores === 1 ? "" : "s"}
             </span>
             <span>
               {product.savings ? `Save ${npr(product.savings)}` : "Best prices"}
@@ -70,7 +70,7 @@ export function ProductCard({
         </div>
         <Link
           href={`/product/${product.slug}`}
-          className="compare-link mt-4 flex items-center justify-center gap-2 rounded-[3px] bg-[#17221f] py-2.5 text-sm font-bold text-white transition hover:bg-[#0c8b67]"
+          className="mt-4 flex items-center justify-center gap-2 rounded-[3px] bg-[#17221f] py-2.5 text-sm font-bold text-white transition hover:bg-[#0c8b67]"
         >
           Compare prices <ArrowUpRight size={15} />
         </Link>
