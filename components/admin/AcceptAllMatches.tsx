@@ -12,7 +12,7 @@ export function AcceptAllMatches({ pendingTotal, batchSize }: { pendingTotal: nu
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ accepted: number; skipped: number; remaining: number } | null>(null);
+  const [result, setResult] = useState<{ accepted: number; skipped: number; blocked: number; remaining: number } | null>(null);
 
   if (!pendingTotal) return null;
   const thisBatch = Math.min(pendingTotal, batchSize);
@@ -22,7 +22,7 @@ export function AcceptAllMatches({ pendingTotal, batchSize }: { pendingTotal: nu
     startTransition(async () => {
       const response = await acceptAllMatchesAction();
       if (response.error) { setError(response.error); return; }
-      setResult({ accepted: response.accepted ?? 0, skipped: response.skipped ?? 0, remaining: response.remaining ?? 0 });
+      setResult({ accepted: response.accepted ?? 0, skipped: response.skipped ?? 0, blocked: response.blocked ?? 0, remaining: response.remaining ?? 0 });
       dialogRef.current?.close();
     });
   };
@@ -40,6 +40,7 @@ export function AcceptAllMatches({ pendingTotal, batchSize }: { pendingTotal: nu
       {result && (
         <p className="w-full text-sm text-[#66736e]" role="status">
           Merged {result.accepted} match{result.accepted === 1 ? "" : "es"}
+          {result.blocked ? `, held back ${result.blocked} whose details disagree` : ""}
           {result.skipped ? `, skipped ${result.skipped} already decided` : ""}.{" "}
           {result.remaining ? <strong>{result.remaining} still pending — click again to continue.</strong> : "Nothing left to review."}
         </p>
@@ -58,9 +59,14 @@ export function AcceptAllMatches({ pendingTotal, batchSize }: { pendingTotal: nu
             alerts onto the surviving product. <strong>It cannot be undone.</strong>
           </p>
           <p className="mt-3 text-sm leading-6 text-[#66736e]">
-            Every match here scored between 55% and 74% — the matcher was <em>not</em> confident.
-            Some of these pairs are genuinely different products, and accepting in bulk will merge
-            those too. Reviewing individually is the safer option.
+            Pairs whose names state a different capacity, processor, generation, screen size or
+            part number are <strong>held back automatically</strong> and left for you to judge
+            individually — so this merges only pairs with nothing concrete contradicting them.
+          </p>
+          <p className="mt-3 text-sm leading-6 text-[#66736e]">
+            That check is on the product details, not the match percentage. Confidence is not a
+            reliable guide here: across the full queue, higher-scoring pairs disagreed on their
+            details <em>more</em> often, not less.
           </p>
           {pendingTotal > batchSize && (
             <p className="mt-3 text-sm leading-6 text-[#66736e]">
