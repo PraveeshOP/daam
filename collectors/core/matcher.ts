@@ -46,11 +46,89 @@ export function normalizeStoreProduct(product: StoreProduct): NormalizedAttribut
   return { brand, model, storage: storage && clean(storage).replace(/\s+/g, ""), ram: ram && clean(ram).replace(/\s+/g, ""), color: color && clean(color) };
 }
 
+/**
+ * Marketing filler that appears in retail product names but carries no identity. Stripped before
+ * two models are compared so a terse name can still match a verbose one describing the same
+ * thing — "s26 ultra" vs "galaxy s26 ultra 5g with 200mp camera and privacy display".
+ *
+ * Deliberately excludes anything that distinguishes variants: no sizes, no chip names, no
+ * capacities, and none of the VARIANT words below.
+ */
+const MODEL_NOISE = new Set([
+  "with", "and", "the", "for", "new", "official", "genuine", "warranty", "brand", "box", "sealed",
+  "5g", "4g", "lte", "wifi", "bluetooth", "dual", "sim", "camera", "display", "screen", "privacy",
+  "smartphone", "phone", "mobile", "handset", "laptop", "notebook", "inch", "model", "series",
+  "edition", "version", "colour", "color", "price", "nepal", "specs",
+]);
+
+/**
+ * Words that change *which* product this is. If one side carries one and the other does not, the
+ * two are different variants no matter how much else they share — "iPhone 17" and "iPhone 17 Pro"
+ * overlap almost completely and must never merge.
+ */
+const MODEL_VARIANTS = new Set(["pro", "max", "plus", "ultra", "air", "mini", "lite", "se", "fe", "neo", "prime", "max+"]);
+
+const modelTokens = (model: string) => model.split(" ").filter((token) => token && !MODEL_NOISE.has(token));
+
+/**
+ * Model similarity, 0-40.
+ *
+ * Replaces a bare `source.model === candidate.model`, which was exact string equality and so
+ * awarded nothing unless two names matched character for character. Retail catalogue names are
+ * verbose marketing strings, so in practice the 40 points almost never landed: a *correct* pair
+ * topped out at brand (20) + storage (25) = 65, under the 75 auto-merge bar, while a bare storage
+ * coincidence still scored 25. That is why the review queue holds 403 candidates stuck at 55-70%,
+ * why the catalogue carries 28 near-duplicate MacBook rows, and why a SanDisk 128GB flash drive
+ * ranked against "iPhone 16 128 GB".
+ *
+ * Loosening this is only safe because the three gates below refuse outright rather than scale:
+ *
+ *  1. **Variant words must agree exactly.** "iphone 17" vs "iphone 17 pro" -> 0.
+ *  2. **Numeric discriminators must not conflict.** Every number on the shorter side must appear
+ *     on the longer one, so "iphone 17" vs "iphone 16" -> 0, and "m5 24" vs "m5 14" -> 0.
+ *  3. **High containment required.** After noise removal, the shorter token set must be almost
+ *     entirely contained in the longer one; below 0.8 scores 0 rather than a little.
+ *
+ * Only then is credit awarded, scaled by containment (32-40). Partial credit never invents a
+ * match on its own — 40 + storage 25 = 65 still needs a brand agreement to reach 75.
+ */
+export function scoreModelSimilarity(sourceModel?: string, candidateModel?: string): number {
+  if (!sourceModel || !candidateModel) return 0;
+  if (sourceModel === candidateModel) return 40;
+
+  const sourceTokens = modelTokens(sourceModel);
+  const candidateTokens = modelTokens(candidateModel);
+  const sourceSet = new Set(sourceTokens);
+  const candidateSet = new Set(candidateTokens);
+  if (!sourceSet.size || !candidateSet.size) return 0;
+
+  /*
+   * Counted, not just present. "MacBook Pro M5" and "MacBook Pro M5 Pro" are different machines
+   * (M5 vs M5 Pro chip), but a Set collapses the candidate's two "pro" tokens into one and the
+   * distinction disappears — which really did produce an 85% match between a plain-M5 listing and
+   * an M5 Pro catalogue row. Comparing multiplicities keeps chip/product tiers apart.
+   */
+  const variantsOf = (tokens: string[]) => tokens.filter((token) => MODEL_VARIANTS.has(token)).sort().join(" ");
+  if (variantsOf(sourceTokens) !== variantsOf(candidateTokens)) return 0;
+
+  const numbersOf = (set: Set<string>) => new Set([...set].filter((token) => /\d/.test(token)));
+  const sourceNumbers = numbersOf(sourceSet);
+  const candidateNumbers = numbersOf(candidateSet);
+  const [fewer, more] = sourceNumbers.size <= candidateNumbers.size ? [sourceNumbers, candidateNumbers] : [candidateNumbers, sourceNumbers];
+  for (const number of fewer) if (!more.has(number)) return 0;
+
+  const overlap = [...sourceSet].filter((token) => candidateSet.has(token)).length;
+  const containment = overlap / Math.min(sourceSet.size, candidateSet.size);
+  if (containment < 0.8) return 0;
+  return Math.round(40 * containment);
+}
+
 export function scoreMatch(source: NormalizedAttributes, candidate: NormalizedAttributes): MatchResult {
   let confidence = 0;
   const reasons: string[] = [];
   if (source.brand !== "unknown" && source.brand === candidate.brand) { confidence += 20; reasons.push("brand"); }
-  if (source.model && source.model === candidate.model) { confidence += 40; reasons.push("model"); }
+  const modelScore = scoreModelSimilarity(source.model, candidate.model);
+  if (modelScore) { confidence += modelScore; reasons.push(modelScore === 40 ? "model" : `model~${modelScore}`); }
   if (source.storage && candidate.storage && source.storage === candidate.storage) { confidence += 25; reasons.push("storage"); }
   if (source.ram && candidate.ram && source.ram === candidate.ram) { confidence += 10; reasons.push("ram"); }
   if (source.color && candidate.color && source.color === candidate.color) { confidence += 5; reasons.push("color"); }
