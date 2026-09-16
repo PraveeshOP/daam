@@ -1,0 +1,110 @@
+name: Collect prices
+
+# Replaces the BullMQ worker in a serverless deployment. The worker needs an always-on Node
+# process, which no free tier provides -- but the collectors do not need it: `npm run collect:*`
+# calls runStoreCollection directly, with no Redis and no queue. This runs them on a schedule
+# instead, which on a public repo costs nothing.
+on:
+  schedule:
+    # 01:15 UTC daily (~07:00 Nepal time), so prices are fresh before the shopping day.
+    - cron: "15 1 * * *"
+  workflow_dispatch:
+    inputs:
+      stores:
+        description: "Space-separated collector names, or 'shard' for today's scheduled slice, or 'all'"
+        required: false
+        default: "shard"
+      limit:
+        description: "Max products per store"
+        required: false
+        default: "2000"
+
+permissions:
+  contents: read
+
+# Never let two collections overlap: they would race on the same offers rows, and hitting every
+# store twice over is exactly how this project got TLS-blocked by one of them.
+concurrency:
+  group: collect-prices
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Choose today's collectors
+        id: pick
+        env:
+          REQUESTED: ${{ github.event.inputs.stores || 'shard' }}
+        run: |
+          node -e '
+            const scripts = Object.keys(require("./package.json").scripts)
+              .filter((k) => k.startsWith("collect:"))
+              .map((k) => k.slice(8));
+            const requested = (process.env.REQUESTED || "shard").trim();
+            let chosen;
+            if (requested === "all") {
+              chosen = scripts;
+            } else if (requested === "shard") {
+              // A full sweep of every store takes ~3.5h and re-fetches every category page. Doing
+              // that daily is both wasteful and rude to the stores, so the catalogue is split
+              // across the week: each store gets a full-depth refresh every 7 days, and no single
+              // day hammers all 29 sites at once.
+              const day = new Date().getUTCDay();
+              chosen = scripts.filter((_, index) => index % 7 === day);
+            } else {
+              const known = new Set(scripts);
+              chosen = requested.split(/\s+/).filter((name) => known.has(name));
+            }
+            if (!chosen.length) { console.error("no matching collectors"); process.exit(1); }
+            console.log("::notice::collecting " + chosen.length + " stores: " + chosen.join(", "));
+            require("fs").appendFileSync(process.env.GITHUB_OUTPUT, "stores=" + chosen.join(" ") + "\n");
+          '
+
+      - name: Run collectors
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COLLECTOR_REQUEST_TIMEOUT_MS: "20000"
+          LIMIT: ${{ github.event.inputs.limit || '2000' }}
+          STORES: ${{ steps.pick.outputs.stores }}
+        run: |
+          set -u
+          failed=""
+          # Sequential, never parallel: a matrix would fan out to every store at once. One store
+          # failing (their server down, a network blip) must not abort the rest, so each is run
+          # independently and failures are collected for the summary.
+          for store in $STORES; do
+            echo "::group::$store"
+            if npm run "collect:$store" -- --limit="$LIMIT"; then
+              echo "$store ok"
+            else
+              echo "::warning::collector failed: $store"
+              failed="$failed $store"
+            fi
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::warning::collectors that failed:$failed"
+          fi
+          echo "### Collection finished" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ran: \`$STORES\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$failed" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Failed: \`$failed\`" >> "$GITHUB_STEP_SUMMARY"
+          fi
